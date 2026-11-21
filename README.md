@@ -6,6 +6,8 @@ Plant a garden and hold off waves of cartoon zombies before they reach the green
 
 **▶ [Play now in your browser](https://sadirhossain0.github.io/sprout-siege/)** · **[Download for Android, Windows and Mac](https://github.com/sadirhossain0/sprout-siege/releases/latest)** · **[Watch the trailer](https://sadirhossain0.github.io/sprout-siege/media/videos/Trailer.mp4)** · [What's new](CHANGELOG.md)
 
+👾 **New: [Sprout Siege Retro](https://github.com/sadirhossain0/sprout-siege-retro)**, the same game as chunky pixel art with chiptune sound and six color palettes. [Play it in your browser](https://sadirhossain0.github.io/sprout-siege-retro/).
+
 ## Features
 
 - **18 plants**, from Dew Lilies and Berry Blasters to Popcorn Pods, Sprinkler Blooms and Boom Gourds
