@@ -63,3 +63,4 @@ jobs:
           body_path: release/notes-${{ steps.v.outputs.version }}.md
           files: out/*
           make_latest: true
+          overwrite_files: true

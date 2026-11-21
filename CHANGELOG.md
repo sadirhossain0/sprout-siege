@@ -21,7 +21,7 @@ Plant a garden and hold off waves of cartoon zombies before they reach the green
 
 | Platform | File | How to install |
 |---|---|---|
-| **iPhone / iPad** | No download needed | Open **https://sadirhossain0.github.io/sprot-seige/** in Safari, tap **Share → Add to Home Screen**, and open it once while online. It then works offline, fullscreen. |
+| **iPhone / iPad** | No download needed | Open **https://sadirhossain0.github.io/sprout-siege/** in Safari, tap **Share → Add to Home Screen**, and open it once while online. It then works offline, fullscreen. |
 | **Android** (5.0+) | `SproutSiege-2.0-Android.apk` | Open it on your phone and allow "Install unknown apps". If Play Protect warns, tap **More details → Install anyway**. Installs over older versions and keeps your progress. |
 | **Windows** 10/11 | `SproutSiege-2.0-Windows.zip` | Extract, open the `Sprout Siege` folder, run **Sprout Siege.exe**. If SmartScreen appears: **More info → Run anyway**. |
 | **Mac** (M1–M4) | `SproutSiege-2.0-Mac-AppleSilicon.zip` | Unzip, drag **Sprout Siege** into Applications, open it. The first time: **System Settings → Privacy & Security → Open Anyway**. |
