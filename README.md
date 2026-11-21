@@ -4,6 +4,8 @@ A lane-defense game: plant a garden and hold off waves of cartoon zombies before
 
 **Play it:** https://sadirhossain0.github.io/sprot-seige/
 
+**Download:** [Android APK](https://sadirhossain0.github.io/sprot-seige/downloads/SproutSiege-2.0-Android.apk) · [Windows, Mac and all platforms (Releases)](https://github.com/sadirhossain0/sprot-seige/releases) · [What's new](CHANGELOG.md)
+
 - 14 plants and 12 kinds of zombies
 - 5 worlds with 10 levels each (Backyard, Autumn Orchard, Moonlit Garden, Frosty Garden, Sunny Beach), plus Endless Horde
 - Guided tutorial, How to Play book, Watch Demo mode, Field Guide
