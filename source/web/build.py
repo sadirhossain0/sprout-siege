@@ -10,8 +10,31 @@ html { box-sizing: border-box; height: 100%; background: var(--bg); }
 body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; overscroll-behavior: none;
   -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
 canvas#game { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.ss-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15,20,10,.62); font-family: Fredoka, "Trebuchet MS", system-ui, sans-serif; -webkit-user-select: text; user-select: text; }
+.ss-card { position: relative; width: min(560px, 100%); max-height: 100%; overflow-y: auto; box-sizing: border-box; padding: 20px 24px; border-radius: 22px; background: #fff7e2; color: #3b2a14; border: 6px solid #8b5426; box-shadow: 0 8px 0 rgba(0,0,0,.25); }
+.ss-card h2 { margin: 0 0 6px; font-family: "Lilita One", "Trebuchet MS", sans-serif; font-weight: 400; font-size: 30px; color: #2f7a2c; }
+.ss-card h3 { margin: 18px 0 4px; font-family: "Lilita One", "Trebuchet MS", sans-serif; font-weight: 400; font-size: 22px; color: #a8503a; }
+.ss-card p { margin: 6px 0 10px; font-size: 16px; line-height: 1.4; }
+.ss-card label { display: block; margin: 8px 0; font-weight: 600; font-size: 15px; }
+.ss-card input { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 10px 12px; font: 600 17px Fredoka, system-ui, sans-serif; color: #3b2a14; background: #fff; border: 2px solid #b89a6a; border-radius: 10px; }
+.ss-card input:focus { outline: 3px solid #7fd458; border-color: #4fa83a; }
+.ss-card input[hidden] { display: none; }
+.ss-row { display: flex; gap: 10px; align-items: center; margin: 8px 0; }
+.ss-row input { margin-top: 0; flex: 1; min-width: 0; font-family: ui-monospace, Menlo, monospace; font-size: 15px; }
+.ss-btn { flex: none; padding: 10px 16px; font: 400 18px "Lilita One", "Trebuchet MS", sans-serif; color: #fff8e0; background: #b8783d; border: 3px solid #24180c; border-radius: 12px; box-shadow: 0 4px 0 rgba(0,0,0,.25); cursor: pointer; }
+.ss-btn.go { background: #5aa83a; }
+.ss-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.ss-btn:disabled { opacity: .55; }
+.ss-btn:focus-visible, .ss-link:focus-visible, .ss-x:focus-visible { outline: 3px solid #ffe14a; outline-offset: 2px; }
+.ss-link { background: none; border: none; padding: 4px 0; color: #2f6aa8; font: 600 15px Fredoka, system-ui, sans-serif; text-decoration: underline; cursor: pointer; }
+.ss-x { position: absolute; top: 10px; right: 12px; width: 40px; height: 40px; border-radius: 50%; border: 3px solid #24180c; background: #b8783d; color: #fff8e0; font-size: 18px; cursor: pointer; }
+.ss-msg { min-height: 22px; margin: 6px 0; font-weight: 600; font-size: 15px; color: #2f7a2c; }
+.ss-msg.bad { color: #b13a2a; }
+@media (max-height: 500px) { .ss-card { padding: 14px 18px; } .ss-card h3 { margin-top: 10px; } .ss-card p { margin: 4px 0 6px; } }
 """
-body = f'<canvas id="game" aria-label="Sprout Siege game"></canvas>\n<script>\n{js}\n</script>\n'
+cfg_path = os.path.join(ROOT, 'cloud-config.json')
+cfg = open(cfg_path).read().strip() if os.path.exists(cfg_path) else 'null'
+body = f'<canvas id="game" aria-label="Sprout Siege game"></canvas>\n<script>window.SPROUT_CLOUD_CONFIG = {cfg} || window.SPROUT_CLOUD_CONFIG || null;</script>\n<script>\n{js}\n</script>\n'
 fragment = f'<title>Sprout Siege</title>\n<style>{css}</style>\n{body}'
 full = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">\n'

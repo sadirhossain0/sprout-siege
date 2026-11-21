@@ -179,7 +179,7 @@ const Save = {
     } catch (e) { /* storage unavailable */ }
     if (!Array.isArray(this.data.seenBugs)) this.data.seenBugs = [];
   },
-  write() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) { /* ignore */ } },
+  write(noCloud) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) { /* ignore */ } if (!noCloud && typeof Cloud !== 'undefined') Cloud.schedule(); },
   reset() {
     const keep = { sfx: this.data.sfx, music: this.data.music, autoDew: this.data.autoDew, tips: this.data.tips };
     this.data = Object.assign({ unlocked: 1, done: [], endlessBest: 0, tutDone: false, seenBugs: [] }, keep);

@@ -20,10 +20,32 @@ html { box-sizing: border-box; height: 100%; background: var(--bg); }
 body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; overscroll-behavior: none;
   -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
 canvas#game { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.ss-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15,20,10,.62); font-family: Fredoka, "Trebuchet MS", system-ui, sans-serif; -webkit-user-select: text; user-select: text; }
+.ss-card { position: relative; width: min(560px, 100%); max-height: 100%; overflow-y: auto; box-sizing: border-box; padding: 20px 24px; border-radius: 22px; background: #fff7e2; color: #3b2a14; border: 6px solid #8b5426; box-shadow: 0 8px 0 rgba(0,0,0,.25); }
+.ss-card h2 { margin: 0 0 6px; font-family: "Lilita One", "Trebuchet MS", sans-serif; font-weight: 400; font-size: 30px; color: #2f7a2c; }
+.ss-card h3 { margin: 18px 0 4px; font-family: "Lilita One", "Trebuchet MS", sans-serif; font-weight: 400; font-size: 22px; color: #a8503a; }
+.ss-card p { margin: 6px 0 10px; font-size: 16px; line-height: 1.4; }
+.ss-card label { display: block; margin: 8px 0; font-weight: 600; font-size: 15px; }
+.ss-card input { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 10px 12px; font: 600 17px Fredoka, system-ui, sans-serif; color: #3b2a14; background: #fff; border: 2px solid #b89a6a; border-radius: 10px; }
+.ss-card input:focus { outline: 3px solid #7fd458; border-color: #4fa83a; }
+.ss-card input[hidden] { display: none; }
+.ss-row { display: flex; gap: 10px; align-items: center; margin: 8px 0; }
+.ss-row input { margin-top: 0; flex: 1; min-width: 0; font-family: ui-monospace, Menlo, monospace; font-size: 15px; }
+.ss-btn { flex: none; padding: 10px 16px; font: 400 18px "Lilita One", "Trebuchet MS", sans-serif; color: #fff8e0; background: #b8783d; border: 3px solid #24180c; border-radius: 12px; box-shadow: 0 4px 0 rgba(0,0,0,.25); cursor: pointer; }
+.ss-btn.go { background: #5aa83a; }
+.ss-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.ss-btn:disabled { opacity: .55; }
+.ss-btn:focus-visible, .ss-link:focus-visible, .ss-x:focus-visible { outline: 3px solid #ffe14a; outline-offset: 2px; }
+.ss-link { background: none; border: none; padding: 4px 0; color: #2f6aa8; font: 600 15px Fredoka, system-ui, sans-serif; text-decoration: underline; cursor: pointer; }
+.ss-x { position: absolute; top: 10px; right: 12px; width: 40px; height: 40px; border-radius: 50%; border: 3px solid #24180c; background: #b8783d; color: #fff8e0; font-size: 18px; cursor: pointer; }
+.ss-msg { min-height: 22px; margin: 6px 0; font-weight: 600; font-size: 15px; color: #2f7a2c; }
+.ss-msg.bad { color: #b13a2a; }
+@media (max-height: 500px) { .ss-card { padding: 14px 18px; } .ss-card h3 { margin-top: 10px; } .ss-card p { margin: 4px 0 6px; } }
 </style>
 </head>
 <body>
 <canvas id="game" aria-label="Sprout Siege game"></canvas>
+<script>window.SPROUT_CLOUD_CONFIG = null || window.SPROUT_CLOUD_CONFIG || null;</script>
 <script>
 'use strict';
 /* ===== Sprout Siege — core: constants, helpers, drawing primitives, audio, storage ===== */
@@ -206,7 +228,7 @@ const Save = {
     } catch (e) { /* storage unavailable */ }
     if (!Array.isArray(this.data.seenBugs)) this.data.seenBugs = [];
   },
-  write() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) { /* ignore */ } },
+  write(noCloud) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) { /* ignore */ } if (!noCloud && typeof Cloud !== 'undefined') Cloud.schedule(); },
   reset() {
     const keep = { sfx: this.data.sfx, music: this.data.music, autoDew: this.data.autoDew, tips: this.data.tips };
     this.data = Object.assign({ unlocked: 1, done: [], endlessBest: 0, tutDone: false, seenBugs: [] }, keep);
@@ -2862,6 +2884,273 @@ function playUp(x, y) {
   G.drag = null; G.pressCard = -1; G.pressT = 0;
 }
 
+/* ===== Save codes + cloud sync (Firebase Auth + Firestore over REST, no SDK) ===== */
+
+// Filled in at build time from cloud-config.json ({ "apiKey": "...", "projectId": "..." }); null = cloud save not set up.
+const CLOUD_CONFIG = window.SPROUT_CLOUD_CONFIG || null;
+
+/* ---------- progress helpers ---------- */
+function progressOf(d) {
+  return { unlocked: d.unlocked, done: d.done.slice(), endlessBest: d.endlessBest, tutDone: !!d.tutDone, seenBugs: d.seenBugs.slice() };
+}
+// Never loses progress: keeps the best of both sides.
+function mergeProgress(into, other) {
+  if (!other) return false;
+  const before = JSON.stringify(progressOf(into));
+  into.unlocked = Math.min(LEVELS.length, Math.max(into.unlocked || 1, other.unlocked || 1));
+  into.done = Array.from(new Set([...(into.done || []), ...(other.done || [])])).filter(i => i >= 0 && i < LEVELS.length).sort((a, b) => a - b);
+  into.endlessBest = Math.max(into.endlessBest || 0, other.endlessBest || 0);
+  into.tutDone = !!(into.tutDone || other.tutDone);
+  into.seenBugs = Array.from(new Set([...(into.seenBugs || []), ...(other.seenBugs || [])])).filter(k => BUGS[k]);
+  return JSON.stringify(progressOf(into)) !== before;
+}
+
+/* ---------- save codes: short text that carries your progress to another device ---------- */
+const SaveCode = {
+  hash(s) { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1679616; return h.toString(36).padStart(4, '0'); },
+  make(d = Save.data) {
+    let doneBits = 0n; for (const i of d.done) if (i >= 0 && i < 64) doneBits |= 1n << BigInt(i);
+    let seen = 0; BUG_ORDER.forEach((k, i) => { if (d.seenBugs.includes(k)) seen |= 1 << i; });
+    const body = [d.unlocked.toString(36), doneBits.toString(36), (d.endlessBest || 0).toString(36), seen.toString(36), d.tutDone ? '1' : '0'].join('.');
+    return `SPRT-${body}-${this.hash(body)}`.toUpperCase();
+  },
+  read(code) {
+    const m = String(code || '').trim().toUpperCase().replace(/\s+/g, '').match(/^SPRT-([0-9A-Z.]+)-([0-9A-Z]{4})$/);
+    if (!m || this.hash(m[1].toLowerCase()).toUpperCase() !== m[2]) return null;
+    const p = m[1].toLowerCase().split('.');
+    if (p.length !== 5) return null;
+    const big36 = s => [...s].reduce((a, ch) => a * 36n + BigInt(parseInt(ch, 36)), 0n);
+    const doneBits = big36(p[1]), done = [];
+    for (let i = 0; i < LEVELS.length; i++) if ((doneBits >> BigInt(i)) & 1n) done.push(i);
+    const seen = parseInt(p[3], 36), seenBugs = BUG_ORDER.filter((k, i) => seen & (1 << i));
+    return { unlocked: parseInt(p[0], 36), done, endlessBest: parseInt(p[2], 36), seenBugs, tutDone: p[4] === '1' };
+  }
+};
+
+/* ---------- save files: export / import a backup of your progress ---------- */
+const SaveFile = {
+  name() { return `sprout-siege-save-${new Date().toISOString().slice(0, 10)}.json`; },
+  make() {
+    const d = Save.data;
+    return JSON.stringify({ game: 'sprout-siege', format: 1, exported: new Date().toISOString(), progress: progressOf(d),
+      settings: { sfx: d.sfx, music: d.music, autoDew: d.autoDew, tips: d.tips }, loadout: d.loadout || [] }, null, 2);
+  },
+  // Accepts an exported file, or a text file that contains a save code. Returns true on success.
+  load(text) {
+    let j = null;
+    try { j = JSON.parse(text); } catch (e) { j = null; }
+    if (j && j.game === 'sprout-siege' && j.progress && typeof j.progress === 'object') {
+      const p = j.progress;
+      const clean = { unlocked: Math.max(1, parseInt(p.unlocked, 10) || 1), done: Array.isArray(p.done) ? p.done.map(Number).filter(Number.isInteger) : [],
+        endlessBest: Math.max(0, parseInt(p.endlessBest, 10) || 0), tutDone: !!p.tutDone, seenBugs: Array.isArray(p.seenBugs) ? p.seenBugs.filter(k => BUGS[k]) : [] };
+      mergeProgress(Save.data, clean);
+      if (Array.isArray(j.loadout)) Save.data.loadout = j.loadout.filter(k => PLANTS[k]).slice(0, 10);
+      Save.write(); return true;
+    }
+    const m = String(text).match(/SPRT-[0-9A-Z.]+-[0-9A-Z]{4}/i);
+    const code = m && SaveCode.read(m[0]);
+    if (code) { mergeProgress(Save.data, code); Save.write(); return true; }
+    return false;
+  }
+};
+
+/* ---------- cloud sync ---------- */
+const CLOUD_ERRORS = {
+  EMAIL_EXISTS: 'That email already has an account. Tap Sign in instead.',
+  EMAIL_NOT_FOUND: 'Wrong email or password.', INVALID_PASSWORD: 'Wrong email or password.', INVALID_LOGIN_CREDENTIALS: 'Wrong email or password.',
+  INVALID_EMAIL: 'That email address doesn’t look right.', MISSING_PASSWORD: 'Type a password.',
+  TOO_MANY_ATTEMPTS_TRY_LATER: 'Too many tries. Wait a few minutes and try again.', USER_DISABLED: 'This account has been turned off.'
+};
+function cloudError(msg) {
+  const key = String(msg || '').split(' ')[0].split(':')[0];
+  if (key.startsWith('WEAK_PASSWORD')) return 'Use a password with at least 6 characters.';
+  return CLOUD_ERRORS[key] || 'Something went wrong. Check your internet connection and try again.';
+}
+const Cloud = {
+  KEY: 'sproutSiege.cloud.v1', s: null, busy: false, timer: null, lastSync: 0, status: '', lastTry: 0,
+  enabled() { return !!(CLOUD_CONFIG && CLOUD_CONFIG.apiKey && CLOUD_CONFIG.projectId); },
+  signedIn() { return !!(this.s && this.s.refreshToken); },
+  load() { try { this.s = JSON.parse(localStorage.getItem(this.KEY) || 'null'); } catch (e) { this.s = null; } if (this.s) this.lastSync = this.s.lastSync || 0; },
+  store() { try { if (this.s) localStorage.setItem(this.KEY, JSON.stringify(Object.assign(this.s, { lastSync: this.lastSync }))); else localStorage.removeItem(this.KEY); } catch (e) { /* ignore */ } },
+  async post(url, body, form) {
+    let r;
+    try {
+      r = await fetch(url, { method: 'POST', headers: { 'Content-Type': form ? 'application/x-www-form-urlencoded' : 'application/json' }, body: form ? body : JSON.stringify(body) });
+    } catch (e) { throw new Error('Can’t reach the cloud right now. Check your internet connection.'); }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(cloudError(j.error && (j.error.message || j.error)));
+    return j;
+  },
+  authUrl(op) { return `https://identitytoolkit.googleapis.com/v1/accounts:${op}?key=${encodeURIComponent(CLOUD_CONFIG.apiKey)}`; },
+  setSession(j) {
+    this.s = { email: j.email, uid: j.localId, idToken: j.idToken, refreshToken: j.refreshToken, exp: Date.now() + (parseInt(j.expiresIn, 10) - 60) * 1000 };
+    this.store();
+  },
+  async signUp(email, password) { this.setSession(await this.post(this.authUrl('signUp'), { email, password, returnSecureToken: true })); return this.sync(); },
+  async signIn(email, password) { this.setSession(await this.post(this.authUrl('signInWithPassword'), { email, password, returnSecureToken: true })); return this.sync(); },
+  async resetPassword(email) { await this.post(this.authUrl('sendOobCode'), { requestType: 'PASSWORD_RESET', email }); },
+  signOut() { this.s = null; this.lastSync = 0; this.status = ''; this.store(); },
+  async token() {
+    if (this.s.idToken && Date.now() < this.s.exp) return this.s.idToken;
+    const j = await this.post(`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(CLOUD_CONFIG.apiKey)}`,
+      'grant_type=refresh_token&refresh_token=' + encodeURIComponent(this.s.refreshToken), true);
+    this.s.idToken = j.id_token; this.s.refreshToken = j.refresh_token || this.s.refreshToken;
+    this.s.exp = Date.now() + (parseInt(j.expires_in, 10) - 60) * 1000; this.store();
+    return this.s.idToken;
+  },
+  docUrl() { return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(CLOUD_CONFIG.projectId)}/databases/(default)/documents/saves/${encodeURIComponent(this.s.uid)}`; },
+  async request(method, body) {
+    const t = await this.token();
+    let r;
+    try {
+      r = await fetch(this.docUrl(), { method, headers: Object.assign({ Authorization: 'Bearer ' + t }, body ? { 'Content-Type': 'application/json' } : {}), body: body ? JSON.stringify(body) : undefined });
+    } catch (e) { throw new Error('Can’t reach the cloud right now. Check your internet connection.'); }
+    if (method === 'GET' && r.status === 404) return null;
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(r.status === 403 ? 'The cloud refused access. Check the Firestore rules.' : 'Cloud error. Try again in a moment.');
+    return j;
+  },
+  async sync() {
+    if (!this.enabled() || !this.signedIn() || this.busy) return;
+    this.busy = true; this.lastTry = Date.now(); this.status = 'Syncing…';
+    try {
+      const doc = await this.request('GET');
+      let cloud = null;
+      if (doc && doc.fields && doc.fields.data) { try { cloud = JSON.parse(doc.fields.data.stringValue); } catch (e) { cloud = null; } }
+      if (mergeProgress(Save.data, cloud)) Save.write(true);
+      await this.request('PATCH', { fields: { data: { stringValue: JSON.stringify(progressOf(Save.data)) }, updated: { integerValue: String(Date.now()) } } });
+      this.lastSync = Date.now(); this.status = 'Synced'; this.store();
+    } catch (e) {
+      this.status = e.message || 'Could not sync. Will try again later.';
+      throw e;
+    } finally { this.busy = false; }
+  },
+  schedule() {
+    if (!this.enabled() || !this.signedIn() || Rec.active) return;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.sync().catch(() => {}), 3000);
+  },
+  init() {
+    this.load();
+    if (!this.enabled() || !this.signedIn()) return;
+    this.sync().catch(() => {});
+    window.addEventListener('online', () => this.sync().catch(() => {}));
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - this.lastTry > 60000) this.sync().catch(() => {}); });
+  }
+};
+function timeAgo(ms) {
+  if (!ms) return 'never';
+  const s = Math.round((Date.now() - ms) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return new Date(ms).toLocaleDateString();
+}
+
+/* ---------- HTML dialog (text fields need real inputs, so this part is DOM, not canvas) ---------- */
+const Modal = {
+  el: null,
+  open() {
+    if (this.el) this.close();
+    const el = document.createElement('div'); el.className = 'ss-modal';
+    el.addEventListener('pointerdown', e => { if (e.target === el) this.close(); });
+    document.body.appendChild(el); this.el = el;
+    this.render();
+  },
+  close() { if (this.el) { this.el.remove(); this.el = null; } },
+  isOpen() { return !!this.el; },
+  msg(text, bad) { const m = this.el && this.el.querySelector('.ss-msg'); if (m) { m.textContent = text || ''; m.className = 'ss-msg' + (bad ? ' bad' : ''); } },
+  render(note, bad) {
+    const el = this.el; if (!el) return;
+    const signed = Cloud.signedIn();
+    let cloudHtml;
+    if (!Cloud.enabled()) cloudHtml = '<p>Cloud save isn’t switched on in this version yet. Save codes below work everywhere.</p>';
+    else if (signed) cloudHtml = `<p>Signed in as <b>${escapeHtml(Cloud.s.email || '')}</b><br>Last synced: <b>${timeAgo(Cloud.lastSync)}</b></p>
+      <div class="ss-row"><button class="ss-btn go" data-a="sync">Sync now</button><button class="ss-btn" data-a="signout">Sign out</button></div>`;
+    else cloudHtml = `<p>Sign in to sync your progress between your phone, tablet and computer.</p>
+      <label>Email<input id="ss-email" type="email" autocomplete="email" autocapitalize="off" spellcheck="false"></label>
+      <label>Password<input id="ss-pass" type="password" autocomplete="current-password"></label>
+      <div class="ss-row"><button class="ss-btn go" data-a="signin">Sign in</button><button class="ss-btn" data-a="signup">Create account</button></div>
+      <button class="ss-link" data-a="forgot">Forgot password?</button>`;
+    el.innerHTML = `<div class="ss-card" role="dialog" aria-label="Cloud save">
+      <button class="ss-x" data-a="close" aria-label="Close">✕</button>
+      <h2>Cloud Save</h2>${cloudHtml}
+      <div class="ss-msg"></div>
+      <h3>Save code</h3>
+      <p>Copy this code on one device and enter it on another to bring your progress along.</p>
+      <div class="ss-row"><input id="ss-code" readonly value="${SaveCode.make()}"><button class="ss-btn" data-a="copy">Copy</button></div>
+      <div class="ss-row"><input id="ss-in" placeholder="Enter a save code" autocapitalize="characters" spellcheck="false"><button class="ss-btn go" data-a="load">Load</button></div>
+      <h3>Save file</h3>
+      <p>Keep a backup of your progress as a file, or load a backup from another device.</p>
+      <div class="ss-row"><button class="ss-btn" data-a="export">Export save file</button><button class="ss-btn" data-a="import">Import save file</button></div>
+      <input id="ss-file" type="file" accept=".json,application/json,text/plain" hidden>
+    </div>`;
+    const fileIn = el.querySelector('#ss-file');
+    fileIn.addEventListener('change', () => {
+      const f = fileIn.files && fileIn.files[0]; if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        if (SaveFile.load(String(rd.result || ''))) { Snd.play('reward'); this.render(`Loaded ${f.name}. Your progress from the file has been added.`); }
+        else { Snd.play('deny'); this.msg('That file isn\u2019t a Sprout Siege save.', true); }
+      };
+      rd.onerror = () => this.msg('Could not read that file.', true);
+      rd.readAsText(f);
+    });
+    el.querySelectorAll('[data-a]').forEach(b => b.addEventListener('click', () => this.act(b.dataset.a)));
+    if (note) this.msg(note, bad);
+  },
+  async act(a) {
+    const v = id => (this.el.querySelector('#' + id) || {}).value || '';
+    const busy = on => this.el && this.el.querySelectorAll('.ss-btn').forEach(b => (b.disabled = on));
+    try {
+      if (a === 'close') { this.close(); Snd.play('click'); return; }
+      if (a === 'copy') {
+        const inp = this.el.querySelector('#ss-code'); inp.select();
+        try { await navigator.clipboard.writeText(inp.value); this.msg('Save code copied.'); } catch (e) { this.msg('Select the code and copy it.'); }
+        return;
+      }
+      if (a === 'load') {
+        const p = SaveCode.read(v('ss-in'));
+        if (!p) { this.msg('That code isn’t valid. Check it and try again.', true); Snd.play('deny'); return; }
+        mergeProgress(Save.data, p); Save.write(); Snd.play('reward');
+        this.render('Progress loaded! Levels you finished on the other device are now unlocked here.');
+        return;
+      }
+      if (a === 'export') {
+        const name = SaveFile.name(), data = SaveFile.make();
+        if (window.SproutAndroid && window.SproutAndroid.saveFile) {
+          const ok = window.SproutAndroid.saveFile(name, data);
+          this.msg(ok ? `Saved ${name} to your Downloads folder.` : 'Choose where to keep your save file.');
+          return;
+        }
+        const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+        const link = document.createElement('a'); link.href = url; link.download = name;
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        this.msg(`Exported ${name}. If no file appeared, use the save code above instead.`);
+        return;
+      }
+      if (a === 'import') { this.el.querySelector('#ss-file').click(); return; }
+      if (a === 'signout') { Cloud.signOut(); this.render('Signed out. Your progress stays on this device.'); return; }
+      busy(true);
+      if (a === 'signin' || a === 'signup') {
+        const email = v('ss-email').trim(), pass = v('ss-pass');
+        if (!email || !pass) { this.msg('Type your email and a password.', true); busy(false); return; }
+        this.msg(a === 'signin' ? 'Signing in…' : 'Creating your account…');
+        await (a === 'signin' ? Cloud.signIn(email, pass) : Cloud.signUp(email, pass));
+        Snd.play('reward'); this.render('All set! Your progress is synced.'); return;
+      }
+      if (a === 'sync') { this.msg('Syncing…'); await Cloud.sync(); this.render('Synced.'); return; }
+      if (a === 'forgot') {
+        const email = v('ss-email').trim();
+        if (!email) { this.msg('Type your email first, then tap Forgot password.', true); busy(false); return; }
+        await Cloud.resetPassword(email); this.msg('Check your email for a link to reset your password.'); busy(false); return;
+      }
+    } catch (e) { busy(false); this.msg(e.message || 'Something went wrong.', true); Snd.play('deny'); }
+  }
+};
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
 /* ===== Tutorial coach, demo bot, How to Play book, video scripts ===== */
 
 /* ---------- text wrapping into lines (for typed-out speech) ---------- */
@@ -3595,6 +3884,8 @@ canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { 
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 window.addEventListener('keydown', e => {
   if (Rec.active) return;
+  if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (Modal.isOpen()) { if (e.key === 'Escape') Modal.close(); return; }
   Snd.init();
   if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { e.preventDefault(); backAction(); return; }
   if (App.scene === 'howto' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { App.howPage = clamp(App.howPage + (e.key === 'ArrowRight' ? 1 : -1), 0, HOWTO.length - 1); App.howT = App.t; Snd.play('click'); }
@@ -3614,6 +3905,7 @@ document.addEventListener('visibilitychange', () => {
 });
 // Android back button / Escape
 function backAction() {
+  if (Modal.isOpen()) { Modal.close(); return true; }
   if (UI.overlay === 'options') { UI.overlay = App.scene === 'play' ? 'pause' : null; return true; }
   if (UI.overlay === 'pause') { UI.overlay = null; return true; }
   if (UI.overlay === 'newbug') { G.newBug = null; UI.overlay = null; return true; }
@@ -4112,15 +4404,16 @@ function drawOverlay(t) {
   } else if (o === 'options') {
     woodPanel(360, 90, 560, 540);
     text('Options', W / 2, 150, 54, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
-    toggleRow('o_sfx', 410, 186, 460, 'Sound effects', d.sfx, () => { d.sfx = !d.sfx; Save.write(); Snd.init(); Snd.apply(); Snd.play('click'); });
-    toggleRow('o_mus', 410, 250, 460, 'Music', d.music, () => { d.music = !d.music; Save.write(); Snd.init(); Snd.apply(); Music.resume(); Snd.play('click'); });
-    toggleRow('o_auto', 410, 314, 460, 'Auto-collect dew', d.autoDew, () => { d.autoDew = !d.autoDew; Save.write(); Snd.play('click'); });
-    toggleRow('o_tips', 410, 378, 460, 'Tutorials & tips', d.tips !== false, () => { d.tips = d.tips === false; Save.write(); Snd.play('click'); });
-    plankBtn('o_reset', 470, 448, 340, 58, UI.confirm ? 'Tap again to erase' : 'Reset Progress', () => {
+    toggleRow('o_sfx', 410, 176, 460, 'Sound effects', d.sfx, () => { d.sfx = !d.sfx; Save.write(); Snd.init(); Snd.apply(); Snd.play('click'); });
+    toggleRow('o_mus', 410, 236, 460, 'Music', d.music, () => { d.music = !d.music; Save.write(); Snd.init(); Snd.apply(); Music.resume(); Snd.play('click'); });
+    toggleRow('o_auto', 410, 296, 460, 'Auto-collect dew', d.autoDew, () => { d.autoDew = !d.autoDew; Save.write(); Snd.play('click'); });
+    toggleRow('o_tips', 410, 356, 460, 'Tutorials & tips', d.tips !== false, () => { d.tips = d.tips === false; Save.write(); Snd.play('click'); });
+    plankBtn('o_cloud', 430, 420, 420, 54, Cloud.signedIn() ? 'Cloud Save: ' + (Cloud.status === 'Synced' ? 'synced' : 'on') : 'Cloud Save & Backups', () => { Snd.play('click'); Modal.open(); }, { size: 24, color: '#3f9fb0' });
+    plankBtn('o_reset', 470, 482, 340, 46, UI.confirm ? 'Tap again to erase' : 'Reset Progress', () => {
       if (!UI.confirm) { UI.confirm = true; Snd.play('deny'); return; }
       Save.reset(); UI.confirm = false; Snd.play('click');
     }, { size: 24, color: UI.confirm ? '#c0392b' : '#9a7350' });
-    plankBtn('o_done', 470, 520, 340, 66, 'Done', () => { UI.confirm = false; UI.overlay = App.scene === 'play' ? 'pause' : null; Snd.play('click'); }, { size: 32, color: '#5aa83a' });
+    plankBtn('o_done', 470, 540, 340, 60, 'Done', () => { UI.confirm = false; UI.overlay = App.scene === 'play' ? 'pause' : null; Snd.play('click'); }, { size: 32, color: '#5aa83a' });
   } else if (o === 'win') {
     const idx = G.idx, rw = rewardOf(idx);
     woodPanel(330, 60, 620, 600);
@@ -4268,6 +4561,7 @@ window.recAudio = async () => {
 
 /* ---------- boot ---------- */
 Save.load();
+Cloud.init();
 (async function boot() {
   try {
     if (document.fonts && document.fonts.load) {

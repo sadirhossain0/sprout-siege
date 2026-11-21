@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0: Cloud saves and backups
+- **Save codes:** copy a short code on one device and enter it on another to bring your progress along. No account needed.
+- **Save files:** export your progress as a backup file and import it on any device. On Android the file goes to your Downloads folder.
+- **Cloud sync:** create an account with your email and a password and your progress syncs automatically between iPhone, Android, Windows and Mac. Plays offline as usual and syncs when you're back online.
+- Find all of this in **Options → Cloud Save & Backups**. Loading a code or file only ever adds progress, so you can't lose levels by loading an older save.
+
 ## 2.0.0: Zombies in the Garden
 
 Plant a garden and hold off waves of cartoon zombies before they reach the greenhouse.

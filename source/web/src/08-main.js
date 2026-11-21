@@ -82,6 +82,8 @@ canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { 
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 window.addEventListener('keydown', e => {
   if (Rec.active) return;
+  if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (Modal.isOpen()) { if (e.key === 'Escape') Modal.close(); return; }
   Snd.init();
   if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { e.preventDefault(); backAction(); return; }
   if (App.scene === 'howto' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { App.howPage = clamp(App.howPage + (e.key === 'ArrowRight' ? 1 : -1), 0, HOWTO.length - 1); App.howT = App.t; Snd.play('click'); }
@@ -101,6 +103,7 @@ document.addEventListener('visibilitychange', () => {
 });
 // Android back button / Escape
 function backAction() {
+  if (Modal.isOpen()) { Modal.close(); return true; }
   if (UI.overlay === 'options') { UI.overlay = App.scene === 'play' ? 'pause' : null; return true; }
   if (UI.overlay === 'pause') { UI.overlay = null; return true; }
   if (UI.overlay === 'newbug') { G.newBug = null; UI.overlay = null; return true; }
@@ -599,15 +602,16 @@ function drawOverlay(t) {
   } else if (o === 'options') {
     woodPanel(360, 90, 560, 540);
     text('Options', W / 2, 150, 54, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
-    toggleRow('o_sfx', 410, 186, 460, 'Sound effects', d.sfx, () => { d.sfx = !d.sfx; Save.write(); Snd.init(); Snd.apply(); Snd.play('click'); });
-    toggleRow('o_mus', 410, 250, 460, 'Music', d.music, () => { d.music = !d.music; Save.write(); Snd.init(); Snd.apply(); Music.resume(); Snd.play('click'); });
-    toggleRow('o_auto', 410, 314, 460, 'Auto-collect dew', d.autoDew, () => { d.autoDew = !d.autoDew; Save.write(); Snd.play('click'); });
-    toggleRow('o_tips', 410, 378, 460, 'Tutorials & tips', d.tips !== false, () => { d.tips = d.tips === false; Save.write(); Snd.play('click'); });
-    plankBtn('o_reset', 470, 448, 340, 58, UI.confirm ? 'Tap again to erase' : 'Reset Progress', () => {
+    toggleRow('o_sfx', 410, 176, 460, 'Sound effects', d.sfx, () => { d.sfx = !d.sfx; Save.write(); Snd.init(); Snd.apply(); Snd.play('click'); });
+    toggleRow('o_mus', 410, 236, 460, 'Music', d.music, () => { d.music = !d.music; Save.write(); Snd.init(); Snd.apply(); Music.resume(); Snd.play('click'); });
+    toggleRow('o_auto', 410, 296, 460, 'Auto-collect dew', d.autoDew, () => { d.autoDew = !d.autoDew; Save.write(); Snd.play('click'); });
+    toggleRow('o_tips', 410, 356, 460, 'Tutorials & tips', d.tips !== false, () => { d.tips = d.tips === false; Save.write(); Snd.play('click'); });
+    plankBtn('o_cloud', 430, 420, 420, 54, Cloud.signedIn() ? 'Cloud Save: ' + (Cloud.status === 'Synced' ? 'synced' : 'on') : 'Cloud Save & Backups', () => { Snd.play('click'); Modal.open(); }, { size: 24, color: '#3f9fb0' });
+    plankBtn('o_reset', 470, 482, 340, 46, UI.confirm ? 'Tap again to erase' : 'Reset Progress', () => {
       if (!UI.confirm) { UI.confirm = true; Snd.play('deny'); return; }
       Save.reset(); UI.confirm = false; Snd.play('click');
     }, { size: 24, color: UI.confirm ? '#c0392b' : '#9a7350' });
-    plankBtn('o_done', 470, 520, 340, 66, 'Done', () => { UI.confirm = false; UI.overlay = App.scene === 'play' ? 'pause' : null; Snd.play('click'); }, { size: 32, color: '#5aa83a' });
+    plankBtn('o_done', 470, 540, 340, 60, 'Done', () => { UI.confirm = false; UI.overlay = App.scene === 'play' ? 'pause' : null; Snd.play('click'); }, { size: 32, color: '#5aa83a' });
   } else if (o === 'win') {
     const idx = G.idx, rw = rewardOf(idx);
     woodPanel(330, 60, 620, 600);
@@ -755,6 +759,7 @@ window.recAudio = async () => {
 
 /* ---------- boot ---------- */
 Save.load();
+Cloud.init();
 (async function boot() {
   try {
     if (document.fonts && document.fonts.load) {
