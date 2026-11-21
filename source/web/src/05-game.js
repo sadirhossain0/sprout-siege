@@ -118,6 +118,7 @@ function makeDaily(key = dailyKey()) {
   return L;
 }
 const DAILY_IDX = -2;
+const DIFFICULTY = { easy: { hp: 0.75, speed: 0.9, dew: 50 }, normal: { hp: 1, speed: 1, dew: 0 }, hard: { hp: 1.3, speed: 1.1, dew: -25 } };
 function startDaily() { startLevel(DAILY_IDX, false, { level: makeDaily() }); }
 const ENDLESS = { name: 'Endless Horde', sub: 'How long can you last?', endless: true, theme: 'dusk', world: 0, first: 20, dew: 150, interval: 24, tip: 'Waves keep coming and keep getting bigger.' };
 // level index at which each plant becomes available
@@ -180,7 +181,7 @@ function startLevel(idx, endless = false, opts = {}) {
     idx, endless, L, rows,
     grid: Array.from({ length: ROWS }, () => Array(COLS).fill(null)),
     plants: [], bugs: [], projs: [], drops: [], parts: [], fires: [], zapFx: [],
-    dew: L.dew || 100,
+    dew: Math.max(25, (L.dew || 100) + (DIFFICULTY[Save.data.difficulty] || DIFFICULTY.normal).dew),
     cards: types.map(type => ({ type, cd: PLANTS[type].recharge >= 30 ? PLANTS[type].recharge * 0.5 : 0 })),
     sel: null, drag: null, time: 0,
     wave: 0, totalWaves: endless ? Infinity : L.waves, waves: endless ? null : buildWaves(L),
@@ -290,10 +291,12 @@ function spawnBug(type, row, x) {
     stompT: rand(3, 5), spitT: rand(1.5, 3), throwT: rand(2, 4), stingT: rand(1.5, 2.5), summonT: 6, prick: 0, stompA: 0, actA: 0 };
   if (G.weather === 'rain') b.speed *= 0.9;
   if (G.L.twist === 'fast') b.speed *= 1.3;
+  const df = DIFFICULTY[Save.data.difficulty] || DIFFICULTY.normal;
+  b.speed *= df.speed; b.hp = b.maxHp = Math.round(b.hp * df.hp); b.armor = b.maxArmor = Math.round(b.armor * df.hp);
   if (G.L.twist === 'tough') { b.hp = b.maxHp = Math.round(b.hp * 1.4); }
   G.bugs.push(b);
   if (type === 'boss') {
-    b.hp = b.maxHp = 2500 + (G.L.world || 0) * 500;   // the giant grows tougher world by world
+    b.hp = b.maxHp = Math.round((2500 + (G.L.world || 0) * 500) * df.hp);   // the giant grows tougher world by world
     G.boss = b; G.bossVis = 0;
     showMsg('The Compost Giant is coming!', { color: '#ff6b4a', size: 60, dur: 3 });
     Snd.play('roar'); G.shake = Math.max(G.shake, 10);
@@ -1416,7 +1419,7 @@ function openPause() { if (G.state === 'lost' || (G.reward && G.reward.taken)) r
 
 function drawGame(t) {
   ctx.save();
-  if (G.shake > 0) ctx.translate(rand(-G.shake, G.shake), rand(-G.shake, G.shake));
+  if (G.shake > 0 && Save.data.shake !== false) ctx.translate(rand(-G.shake, G.shake), rand(-G.shake, G.shake));
   if (Math.abs(G.lawn.rs - bgRS()) > 0.05) G.lawn = renderLawn(G.lawn.opts);
   ctx.drawImage(G.lawn, 0, 0, W, H);
   // hovered cell highlight / ghost

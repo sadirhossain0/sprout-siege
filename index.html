@@ -54,8 +54,10 @@ const COLS = 9, ROWS = 5;
 const GX = 214, GY = 142, CW = 106, CH = 113;
 const OUT = '#24180c';
 const TAU = Math.PI * 2;
-const FONT_D = '"Lilita One", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif';
-const FONT_B = 'Fredoka, "Trebuchet MS", system-ui, sans-serif';
+// editions (like the retro one) can swap fonts, save slot and synth waveforms before the game starts
+const FONT_D = window.SPROUT_FONT_D || '"Lilita One", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif';
+const FONT_B = window.SPROUT_FONT_B || 'Fredoka, "Trebuchet MS", system-ui, sans-serif';
+let WAVE_MAP = null;
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const randi = (a, b) => Math.floor(rand(a, b + 1));
@@ -224,7 +226,7 @@ function wrapText(str, x, y, maxW, size, lh, o = {}) {
 }
 
 /* ---------- storage ---------- */
-const SAVE_KEY = 'sproutSiege.save.v1';
+const SAVE_KEY = window.SPROUT_SAVE_KEY || 'sproutSiege.save.v1';
 const Save = {
   data: { unlocked: 1, done: [], endlessBest: 0, sfx: true, music: true, autoDew: false, tips: true, tutDone: false, seenBugs: [], stars: {} },
   load() {
@@ -275,7 +277,8 @@ const Snd = {
     const comp = c.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
     comp.connect(c.destination);
-    this.master = c.createGain(); this.master.gain.value = 1; this.master.connect(comp);
+    this.master = c.createGain(); this.master.gain.value = 1;
+    if (this.chain) this.chain(c, this.master, comp); else this.master.connect(comp);
     this.sfx = c.createGain(); this.sfx.connect(this.master);
     this.mus = c.createGain(); this.mus.connect(this.master);
     const len = c.sampleRate;
@@ -306,7 +309,7 @@ const Snd = {
   tone(type, f0, f1, dur, vol, t0 = 0, dest, attack = 0.008) {
     const c = this.ctx, t = c.currentTime + this.base + t0;
     const o = c.createOscillator(), g = c.createGain();
-    o.type = type;
+    o.type = WAVE_MAP ? WAVE_MAP[type] || type : type;
     o.frequency.setValueAtTime(f0, t);
     if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
     g.gain.setValueAtTime(0.0001, t);
@@ -319,7 +322,7 @@ const Snd = {
   voice(type, f, dur, vol, t0, dest, cutoff = 2400, q = 2) {
     const c = this.ctx, t = c.currentTime + this.base + t0;
     const o = c.createOscillator(), fl = c.createBiquadFilter(), g = c.createGain();
-    o.type = type; o.frequency.setValueAtTime(f, t);
+    o.type = WAVE_MAP ? WAVE_MAP[type] || type : type; o.frequency.setValueAtTime(f, t);
     fl.type = 'lowpass'; fl.Q.value = q;
     fl.frequency.setValueAtTime(cutoff, t); fl.frequency.exponentialRampToValueAtTime(Math.max(200, cutoff * 0.25), t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -2030,6 +2033,7 @@ function makeDaily(key = dailyKey()) {
   return L;
 }
 const DAILY_IDX = -2;
+const DIFFICULTY = { easy: { hp: 0.75, speed: 0.9, dew: 50 }, normal: { hp: 1, speed: 1, dew: 0 }, hard: { hp: 1.3, speed: 1.1, dew: -25 } };
 function startDaily() { startLevel(DAILY_IDX, false, { level: makeDaily() }); }
 const ENDLESS = { name: 'Endless Horde', sub: 'How long can you last?', endless: true, theme: 'dusk', world: 0, first: 20, dew: 150, interval: 24, tip: 'Waves keep coming and keep getting bigger.' };
 // level index at which each plant becomes available
@@ -2092,7 +2096,7 @@ function startLevel(idx, endless = false, opts = {}) {
     idx, endless, L, rows,
     grid: Array.from({ length: ROWS }, () => Array(COLS).fill(null)),
     plants: [], bugs: [], projs: [], drops: [], parts: [], fires: [], zapFx: [],
-    dew: L.dew || 100,
+    dew: Math.max(25, (L.dew || 100) + (DIFFICULTY[Save.data.difficulty] || DIFFICULTY.normal).dew),
     cards: types.map(type => ({ type, cd: PLANTS[type].recharge >= 30 ? PLANTS[type].recharge * 0.5 : 0 })),
     sel: null, drag: null, time: 0,
     wave: 0, totalWaves: endless ? Infinity : L.waves, waves: endless ? null : buildWaves(L),
@@ -2202,10 +2206,12 @@ function spawnBug(type, row, x) {
     stompT: rand(3, 5), spitT: rand(1.5, 3), throwT: rand(2, 4), stingT: rand(1.5, 2.5), summonT: 6, prick: 0, stompA: 0, actA: 0 };
   if (G.weather === 'rain') b.speed *= 0.9;
   if (G.L.twist === 'fast') b.speed *= 1.3;
+  const df = DIFFICULTY[Save.data.difficulty] || DIFFICULTY.normal;
+  b.speed *= df.speed; b.hp = b.maxHp = Math.round(b.hp * df.hp); b.armor = b.maxArmor = Math.round(b.armor * df.hp);
   if (G.L.twist === 'tough') { b.hp = b.maxHp = Math.round(b.hp * 1.4); }
   G.bugs.push(b);
   if (type === 'boss') {
-    b.hp = b.maxHp = 2500 + (G.L.world || 0) * 500;   // the giant grows tougher world by world
+    b.hp = b.maxHp = Math.round((2500 + (G.L.world || 0) * 500) * df.hp);   // the giant grows tougher world by world
     G.boss = b; G.bossVis = 0;
     showMsg('The Compost Giant is coming!', { color: '#ff6b4a', size: 60, dur: 3 });
     Snd.play('roar'); G.shake = Math.max(G.shake, 10);
@@ -3328,7 +3334,7 @@ function openPause() { if (G.state === 'lost' || (G.reward && G.reward.taken)) r
 
 function drawGame(t) {
   ctx.save();
-  if (G.shake > 0) ctx.translate(rand(-G.shake, G.shake), rand(-G.shake, G.shake));
+  if (G.shake > 0 && Save.data.shake !== false) ctx.translate(rand(-G.shake, G.shake), rand(-G.shake, G.shake));
   if (Math.abs(G.lawn.rs - bgRS()) > 0.05) G.lawn = renderLawn(G.lawn.opts);
   ctx.drawImage(G.lawn, 0, 0, W, H);
   // hovered cell highlight / ghost
@@ -5035,6 +5041,8 @@ function drawGuide(t) {
 }
 
 /* ---------- overlays ---------- */
+const EXTRA_OVERLAYS = {};   // extra overlay screens an edition can add
+let OPTIONS_EXTRA = null;     // { label, open } adds one more button to Options
 function toggleRow(id, x, y, w, label, val, onToggle) {
   const b = UI.btn(id, x, y, w, 56, onToggle);
   rrect(x, y, w, 56, 12); fs(b.hover ? '#fff3d0' : '#f6ead0'); st(3);
@@ -5065,9 +5073,14 @@ function drawOverlay(t) {
   } else if (o === 'howto') {
     ctx.restore(); ctx.save();
     drawHowToPanel(t, () => { UI.overlay = 'pause'; });
+  } else if (EXTRA_OVERLAYS[o]) {
+    EXTRA_OVERLAYS[o](t);
   } else if (o === 'options') {
-    woodPanel(360, 90, 560, 540);
+    const ex = OPTIONS_EXTRA ? 62 : 0;
+    ctx.save(); ctx.translate(0, -ex / 2);
+    woodPanel(360, 90, 560, 540 + ex);
     text('Options', W / 2, 150, 54, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
+    if (OPTIONS_EXTRA) { plankBtn('o_extra', 430, 420, 420, 54, OPTIONS_EXTRA.label, () => { Snd.play('click'); OPTIONS_EXTRA.open(); }, { size: 24, color: '#d8902a' }); ctx.translate(0, ex); }
     toggleRow('o_sfx', 410, 176, 460, 'Sound effects', d.sfx, () => { d.sfx = !d.sfx; Save.write(); Snd.init(); Snd.apply(); Snd.play('click'); });
     toggleRow('o_mus', 410, 236, 460, 'Music', d.music, () => { d.music = !d.music; Save.write(); Snd.init(); Snd.apply(); Music.resume(); Snd.play('click'); });
     toggleRow('o_auto', 410, 296, 460, 'Auto-collect dew', d.autoDew, () => { d.autoDew = !d.autoDew; Save.write(); Snd.play('click'); });
@@ -5078,6 +5091,7 @@ function drawOverlay(t) {
       Save.reset(); UI.confirm = false; Snd.play('click');
     }, { size: 24, color: UI.confirm ? '#c0392b' : '#9a7350' });
     plankBtn('o_done', 470, 540, 340, 60, 'Done', () => { UI.confirm = false; UI.overlay = App.scene === 'play' ? 'pause' : null; Snd.play('click'); }, { size: 32, color: '#5aa83a' });
+    ctx.restore();
   } else if (o === 'win' && G.idx === DAILY_IDX) {
     woodPanel(330, 60, 620, 600);
     text('Daily Challenge Complete!', W / 2, 124, 44, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
@@ -5188,13 +5202,12 @@ function tick(dt) {
       for (let i = 0; i < steps; i++) updateGame(dt);
     }
   }
-  // draw
-  const c = mainCtx;
-  setCtx(c);
-  c.setTransform(1, 0, 0, 1, 0, 0);
-  c.fillStyle = '#1c2a12'; c.fillRect(0, 0, canvas.width, canvas.height);
-  c.setTransform(View.dpr * View.scale, 0, 0, View.dpr * View.scale, View.dpr * View.ox, View.dpr * View.oy);
-  c.save(); c.beginPath(); c.rect(0, 0, W, H); c.clip();
+  renderFrame(t, dt);
+}
+// layerHook lets an edition know which layer is being drawn ('scene', 'top', 'overlay', 'wipe')
+let layerHook = () => {};
+function drawAll(t, dt) {
+  layerHook('scene');
   switch (App.scene) {
     case 'loading': drawLoading(t); break;
     case 'title': drawTitle(t, dt); break;
@@ -5206,18 +5219,33 @@ function tick(dt) {
     case 'play':
       if (G) {
         drawGame(t);
+        layerHook('top');
         if (!UI.overlay) Coach.draw(t);
         Caption.draw(t);
         if (G.demo && !Rec.active && !UI.overlay) plankBtn('exitdemo', W - 196, H - 66, 180, 54, 'Exit Demo', () => { Snd.play('click'); Auto.stop(); Caption.clear(); go('title'); }, { size: 24, color: '#a8503a' });
       }
       break;
   }
+  layerHook('overlay');
   drawOverlay(t);
+  layerHook('top');
   Auto.draw();
+  layerHook('wipe');
   if (App.fadeDir) drawLeafWipe(App.fade, App.fadeDir);
+}
+function renderFrame(t, dt) {
+  const c = mainCtx;
+  setCtx(c);
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.fillStyle = '#1c2a12'; c.fillRect(0, 0, canvas.width, canvas.height);
+  c.setTransform(View.dpr * View.scale, 0, 0, View.dpr * View.scale, View.dpr * View.ox, View.dpr * View.oy);
+  c.save(); c.beginPath(); c.rect(0, 0, W, H); c.clip();
+  drawAll(t, dt);
   c.restore();
   UI.flip();
-  // portrait warning
+  drawPortraitWarning(c, t);
+}
+function drawPortraitWarning(c, t) {
   if (!Rec.active && View.ch > View.cw * 1.15) {
     c.setTransform(View.dpr, 0, 0, View.dpr, 0, 0);
     c.fillStyle = 'rgba(15,25,10,.92)'; c.fillRect(0, 0, View.cw, View.ch);

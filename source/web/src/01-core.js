@@ -5,8 +5,10 @@ const COLS = 9, ROWS = 5;
 const GX = 214, GY = 142, CW = 106, CH = 113;
 const OUT = '#24180c';
 const TAU = Math.PI * 2;
-const FONT_D = '"Lilita One", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif';
-const FONT_B = 'Fredoka, "Trebuchet MS", system-ui, sans-serif';
+// editions (like the retro one) can swap fonts, save slot and synth waveforms before the game starts
+const FONT_D = window.SPROUT_FONT_D || '"Lilita One", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif';
+const FONT_B = window.SPROUT_FONT_B || 'Fredoka, "Trebuchet MS", system-ui, sans-serif';
+let WAVE_MAP = null;
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const randi = (a, b) => Math.floor(rand(a, b + 1));
@@ -175,7 +177,7 @@ function wrapText(str, x, y, maxW, size, lh, o = {}) {
 }
 
 /* ---------- storage ---------- */
-const SAVE_KEY = 'sproutSiege.save.v1';
+const SAVE_KEY = window.SPROUT_SAVE_KEY || 'sproutSiege.save.v1';
 const Save = {
   data: { unlocked: 1, done: [], endlessBest: 0, sfx: true, music: true, autoDew: false, tips: true, tutDone: false, seenBugs: [], stars: {} },
   load() {
@@ -226,7 +228,8 @@ const Snd = {
     const comp = c.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
     comp.connect(c.destination);
-    this.master = c.createGain(); this.master.gain.value = 1; this.master.connect(comp);
+    this.master = c.createGain(); this.master.gain.value = 1;
+    if (this.chain) this.chain(c, this.master, comp); else this.master.connect(comp);
     this.sfx = c.createGain(); this.sfx.connect(this.master);
     this.mus = c.createGain(); this.mus.connect(this.master);
     const len = c.sampleRate;
@@ -257,7 +260,7 @@ const Snd = {
   tone(type, f0, f1, dur, vol, t0 = 0, dest, attack = 0.008) {
     const c = this.ctx, t = c.currentTime + this.base + t0;
     const o = c.createOscillator(), g = c.createGain();
-    o.type = type;
+    o.type = WAVE_MAP ? WAVE_MAP[type] || type : type;
     o.frequency.setValueAtTime(f0, t);
     if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
     g.gain.setValueAtTime(0.0001, t);
@@ -270,7 +273,7 @@ const Snd = {
   voice(type, f, dur, vol, t0, dest, cutoff = 2400, q = 2) {
     const c = this.ctx, t = c.currentTime + this.base + t0;
     const o = c.createOscillator(), fl = c.createBiquadFilter(), g = c.createGain();
-    o.type = type; o.frequency.setValueAtTime(f, t);
+    o.type = WAVE_MAP ? WAVE_MAP[type] || type : type; o.frequency.setValueAtTime(f, t);
     fl.type = 'lowpass'; fl.Q.value = q;
     fl.frequency.setValueAtTime(cutoff, t); fl.frequency.exponentialRampToValueAtTime(Math.max(200, cutoff * 0.25), t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);

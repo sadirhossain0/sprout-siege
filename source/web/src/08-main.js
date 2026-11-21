@@ -581,6 +581,8 @@ function drawGuide(t) {
 }
 
 /* ---------- overlays ---------- */
+const EXTRA_OVERLAYS = {};   // extra overlay screens an edition can add
+let OPTIONS_EXTRA = null;     // { label, open } adds one more button to Options
 function toggleRow(id, x, y, w, label, val, onToggle) {
   const b = UI.btn(id, x, y, w, 56, onToggle);
   rrect(x, y, w, 56, 12); fs(b.hover ? '#fff3d0' : '#f6ead0'); st(3);
@@ -611,9 +613,14 @@ function drawOverlay(t) {
   } else if (o === 'howto') {
     ctx.restore(); ctx.save();
     drawHowToPanel(t, () => { UI.overlay = 'pause'; });
+  } else if (EXTRA_OVERLAYS[o]) {
+    EXTRA_OVERLAYS[o](t);
   } else if (o === 'options') {
-    woodPanel(360, 90, 560, 540);
+    const ex = OPTIONS_EXTRA ? 62 : 0;
+    ctx.save(); ctx.translate(0, -ex / 2);
+    woodPanel(360, 90, 560, 540 + ex);
     text('Options', W / 2, 150, 54, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
+    if (OPTIONS_EXTRA) { plankBtn('o_extra', 430, 420, 420, 54, OPTIONS_EXTRA.label, () => { Snd.play('click'); OPTIONS_EXTRA.open(); }, { size: 24, color: '#d8902a' }); ctx.translate(0, ex); }
     toggleRow('o_sfx', 410, 176, 460, 'Sound effects', d.sfx, () => { d.sfx = !d.sfx; Save.write(); Snd.init(); Snd.apply(); Snd.play('click'); });
     toggleRow('o_mus', 410, 236, 460, 'Music', d.music, () => { d.music = !d.music; Save.write(); Snd.init(); Snd.apply(); Music.resume(); Snd.play('click'); });
     toggleRow('o_auto', 410, 296, 460, 'Auto-collect dew', d.autoDew, () => { d.autoDew = !d.autoDew; Save.write(); Snd.play('click'); });
@@ -624,6 +631,7 @@ function drawOverlay(t) {
       Save.reset(); UI.confirm = false; Snd.play('click');
     }, { size: 24, color: UI.confirm ? '#c0392b' : '#9a7350' });
     plankBtn('o_done', 470, 540, 340, 60, 'Done', () => { UI.confirm = false; UI.overlay = App.scene === 'play' ? 'pause' : null; Snd.play('click'); }, { size: 32, color: '#5aa83a' });
+    ctx.restore();
   } else if (o === 'win' && G.idx === DAILY_IDX) {
     woodPanel(330, 60, 620, 600);
     text('Daily Challenge Complete!', W / 2, 124, 44, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
@@ -734,13 +742,12 @@ function tick(dt) {
       for (let i = 0; i < steps; i++) updateGame(dt);
     }
   }
-  // draw
-  const c = mainCtx;
-  setCtx(c);
-  c.setTransform(1, 0, 0, 1, 0, 0);
-  c.fillStyle = '#1c2a12'; c.fillRect(0, 0, canvas.width, canvas.height);
-  c.setTransform(View.dpr * View.scale, 0, 0, View.dpr * View.scale, View.dpr * View.ox, View.dpr * View.oy);
-  c.save(); c.beginPath(); c.rect(0, 0, W, H); c.clip();
+  renderFrame(t, dt);
+}
+// layerHook lets an edition know which layer is being drawn ('scene', 'top', 'overlay', 'wipe')
+let layerHook = () => {};
+function drawAll(t, dt) {
+  layerHook('scene');
   switch (App.scene) {
     case 'loading': drawLoading(t); break;
     case 'title': drawTitle(t, dt); break;
@@ -752,18 +759,33 @@ function tick(dt) {
     case 'play':
       if (G) {
         drawGame(t);
+        layerHook('top');
         if (!UI.overlay) Coach.draw(t);
         Caption.draw(t);
         if (G.demo && !Rec.active && !UI.overlay) plankBtn('exitdemo', W - 196, H - 66, 180, 54, 'Exit Demo', () => { Snd.play('click'); Auto.stop(); Caption.clear(); go('title'); }, { size: 24, color: '#a8503a' });
       }
       break;
   }
+  layerHook('overlay');
   drawOverlay(t);
+  layerHook('top');
   Auto.draw();
+  layerHook('wipe');
   if (App.fadeDir) drawLeafWipe(App.fade, App.fadeDir);
+}
+function renderFrame(t, dt) {
+  const c = mainCtx;
+  setCtx(c);
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.fillStyle = '#1c2a12'; c.fillRect(0, 0, canvas.width, canvas.height);
+  c.setTransform(View.dpr * View.scale, 0, 0, View.dpr * View.scale, View.dpr * View.ox, View.dpr * View.oy);
+  c.save(); c.beginPath(); c.rect(0, 0, W, H); c.clip();
+  drawAll(t, dt);
   c.restore();
   UI.flip();
-  // portrait warning
+  drawPortraitWarning(c, t);
+}
+function drawPortraitWarning(c, t) {
   if (!Rec.active && View.ch > View.cw * 1.15) {
     c.setTransform(View.dpr, 0, 0, View.dpr, 0, 0);
     c.fillStyle = 'rgba(15,25,10,.92)'; c.fillRect(0, 0, View.cw, View.ch);
