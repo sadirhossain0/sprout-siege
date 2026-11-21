@@ -606,7 +606,7 @@ function drawOverlay(t) {
     toggleRow('o_mus', 410, 236, 460, 'Music', d.music, () => { d.music = !d.music; Save.write(); Snd.init(); Snd.apply(); Music.resume(); Snd.play('click'); });
     toggleRow('o_auto', 410, 296, 460, 'Auto-collect dew', d.autoDew, () => { d.autoDew = !d.autoDew; Save.write(); Snd.play('click'); });
     toggleRow('o_tips', 410, 356, 460, 'Tutorials & tips', d.tips !== false, () => { d.tips = d.tips === false; Save.write(); Snd.play('click'); });
-    plankBtn('o_cloud', 430, 420, 420, 54, Cloud.signedIn() ? 'Cloud Save: ' + (Cloud.status === 'Synced' ? 'synced' : 'on') : 'Cloud Save & Backups', () => { Snd.play('click'); Modal.open(); }, { size: 24, color: '#3f9fb0' });
+    plankBtn('o_cloud', 430, 420, 420, 54, Cloud.signedIn() ? 'Cloud Save: ' + (Cloud.status === 'Synced' ? 'synced' : 'on') : Cloud.enabled() ? 'Cloud Save & Backups' : 'Save Codes & Backups', () => { Snd.play('click'); Modal.open(); }, { size: 24, color: '#3f9fb0' });
     plankBtn('o_reset', 470, 482, 340, 46, UI.confirm ? 'Tap again to erase' : 'Reset Progress', () => {
       if (!UI.confirm) { UI.confirm = true; Snd.play('deny'); return; }
       Save.reset(); UI.confirm = false; Snd.play('click');

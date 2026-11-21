@@ -1,10 +1,11 @@
 import { packager } from '@electron/packager';
 import fs from 'node:fs';
 const ELECTRON = '44.10.2';
+fs.mkdirSync('app/game', { recursive: true });
 fs.copyFileSync('../web/dist/index.html', 'app/game/index.html');
 const common = {
   dir: 'app', name: 'Sprout Siege', executableName: 'Sprout Siege', electronVersion: ELECTRON, out: 'out', overwrite: true, asar: true,
-  appVersion: '1.1.0', buildVersion: '1.1.0', appCopyright: 'Sprout Siege', appBundleId: 'com.sproutsiege.game',
+  appVersion: '2.0.0', buildVersion: '2.0.0', appCopyright: 'Sprout Siege', appBundleId: 'com.sproutsiege.game',
   appCategoryType: 'public.app-category.games', quiet: true
 };
 const targets = (process.argv[2] || 'win32-x64,darwin-arm64,darwin-x64').split(',');

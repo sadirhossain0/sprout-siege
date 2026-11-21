@@ -178,7 +178,7 @@ const Modal = {
     const el = this.el; if (!el) return;
     const signed = Cloud.signedIn();
     let cloudHtml;
-    if (!Cloud.enabled()) cloudHtml = '<p>Cloud save isn’t switched on in this version yet. Save codes below work everywhere.</p>';
+    if (!Cloud.enabled()) cloudHtml = '';
     else if (signed) cloudHtml = `<p>Signed in as <b>${escapeHtml(Cloud.s.email || '')}</b><br>Last synced: <b>${timeAgo(Cloud.lastSync)}</b></p>
       <div class="ss-row"><button class="ss-btn go" data-a="sync">Sync now</button><button class="ss-btn" data-a="signout">Sign out</button></div>`;
     else cloudHtml = `<p>Sign in to sync your progress between your phone, tablet and computer.</p>
@@ -188,7 +188,7 @@ const Modal = {
       <button class="ss-link" data-a="forgot">Forgot password?</button>`;
     el.innerHTML = `<div class="ss-card" role="dialog" aria-label="Cloud save">
       <button class="ss-x" data-a="close" aria-label="Close">✕</button>
-      <h2>Cloud Save</h2>${cloudHtml}
+      <h2>${Cloud.enabled() ? 'Cloud Save' : 'Save Codes & Backups'}</h2>${cloudHtml}
       <div class="ss-msg"></div>
       <h3>Save code</h3>
       <p>Copy this code on one device and enter it on another to bring your progress along.</p>

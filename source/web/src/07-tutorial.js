@@ -629,7 +629,7 @@ function* recDemo() {
   Save.reset(); Save.data.tutDone = true; Save.data.seenBugs = BUG_ORDER.slice();
   yield* titleCard('Watch a Full Level', 'The bot plays and explains every move', 3.4);
   startDemo(false);
-  yield* botPlay({ captions: true, until: () => UI.overlay === 'demoend' || UI.overlay === 'lose', time: 200 });
+  yield* botPlay({ captions: true, until: () => UI.overlay === 'demoend' || UI.overlay === 'lose', time: 280 });
   yield 2.5;
   Auto.hand.vis = false; UI.overlay = null;
   yield* titleCard('Ready to try?', 'Tap Adventure on the main menu', 3.5, true);
@@ -645,4 +645,24 @@ function* recGuide() {
   Auto.hand.vis = false;
   yield* titleCard('Have fun!', 'Sprout Siege: Zombies in the Garden', 3.5, true);
 }
-const REC_SCRIPTS = { start: recGettingStarted, demo: recDemo, guide: recGuide };
+// Trailer: a big battle in each world
+function showcase(idx, secs) {
+  const L = LEVELS[idx];
+  const pl = plantsFor(idx).filter(k => k !== 'gourd' && k !== 'pepper').slice(-10);
+  startLevel(idx, false, { plants: pl }); App.scene = 'play';
+  G.state = 'play'; G.coachStarted = true; G.dew = 1250; G.holdWaves = true;
+  const layout = ['lily', pl.includes('rose') ? 'rose' : 'berry', pl.includes('thistle') ? 'thistle' : 'berry', pl.includes('frost') ? 'frost' : 'berry', pl.includes('lobber') ? 'lobber' : 'snap', 'stump'];
+  for (const r of G.rows) layout.forEach((t, c) => { if (pl.includes(t) && !G.blocked.has(c + ',' + r) && Math.random() < 0.92) { const p = placePlant(t, c, r); p.born = -10; } });
+  const zs = levelZombies(L);
+  for (let i = 0; i < 11; i++) spawnBug(zs[i % zs.length], G.rows[i % G.rows.length], 760 + (i * 97) % 520);
+  for (let i = 0; i < 4; i++) spawnDrop(rand(GX + 80, GX + 700), -30 - i * 120, false);
+  Caption.show(`${WORLDS[L.world].name}: ${L.sub}`, secs - 0.5);
+}
+function* recTrailer() {
+  Save.reset(); Save.data.tutDone = true; Save.data.seenBugs = BUG_ORDER.slice(); Save.data.tips = false;
+  yield* titleCard('Sprout Siege', 'Zombies in the Garden', 3.2);
+  for (const idx of [3, 13, 24, 34, 46]) { showcase(idx, 7.5); yield 7.5; }
+  Caption.clear();
+  yield* titleCard('Play free on any device', 'iPhone · Android · Windows · Mac · Web', 4, true);
+}
+const REC_SCRIPTS = { start: recGettingStarted, demo: recDemo, guide: recGuide, trailer: recTrailer };

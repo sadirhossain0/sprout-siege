@@ -15,7 +15,7 @@ const FPS = 30;
   await page.waitForFunction(() => App.fontsReady === true);
   await page.evaluate(s => window.recStart(s), script);
   let n = 0, done = false, time = 0;
-  while (!done && time < 240) {
+  while (!done && time < 300) {
     const r = await page.evaluate(([k, dt]) => window.recFrames(k, dt), [45, 1 / FPS]);
     for (const f of r.frames) fs.writeFileSync(path.join(tmp, String(n++).padStart(6, '0') + '.jpg'), Buffer.from(f.split(',')[1], 'base64'));
     done = r.done; time = r.time;
