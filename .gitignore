@@ -1,0 +1,9 @@
+node_modules/
+source/android/build/
+source/android/assets/
+source/android/*.keystore
+source/desktop/out/
+source/desktop/stage/
+source/web/dist/
+source/web/dist-pwa/
+dist/
