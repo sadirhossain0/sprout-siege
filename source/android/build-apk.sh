@@ -9,7 +9,7 @@ rm -rf build && mkdir -p build/gen build/classes build/dex
 cp ../web/dist/index.html assets/index.html
 $BT/aapt2 compile --dir res -o build/res.zip
 $BT/aapt2 link -o build/base.apk -I "$PLAT" --manifest AndroidManifest.xml -A assets --java build/gen \
-  --min-sdk-version 21 --target-sdk-version 34 --version-code 4 --version-name 2.1 build/res.zip
+  --min-sdk-version 21 --target-sdk-version 34 --version-code 5 --version-name 2.2 build/res.zip
 javac -nowarn -Xlint:-options -source 8 -target 8 -bootclasspath "$PLAT" -d build/classes \
   build/gen/com/sproutsiege/game/R.java src/com/sproutsiege/game/MainActivity.java
 $BT/d8 --release --min-api 21 --lib "$PLAT" --output build/dex $(find build/classes -name '*.class')

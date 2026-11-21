@@ -28,22 +28,26 @@ const WORLDS = [
   { key: 'autumn', name: 'Autumn Orchard', color: '#d0782a' },
   { key: 'night', name: 'Moonlit Garden', color: '#5a64b8' },
   { key: 'winter', name: 'Frosty Garden', color: '#4f9ad0' },
-  { key: 'beach', name: 'Sunny Beach', color: '#d8a830' }
+  { key: 'beach', name: 'Sunny Beach', color: '#d8a830' },
+  { key: 'grove', name: 'Mushroom Grove', color: '#8a5ab8' }
 ];
 const WORLD_GEN = {
-  autumn: { dew: 125, intro: { scarecrow: 0, pumpkin: 3, gardener: 6 },
+  autumn: { dew: 125, intro: { scarecrow: 0, pumpkin: 3, gnome: 5, gardener: 6 },
     subs: ['Falling Leaves', 'Apple Picking', 'Scarecrow Season', 'Pumpkin Patch', 'Windy Rows', 'Harvest Moon', 'The Gardener Arrives', 'Cider Press', 'Leaf Pile Panic', 'The Great Harvest'],
     tips: ['Apples fall from the orchard trees now and then. Tap them for 50 dew!', 'Scarecrow hats soak up the first hits. Two shooters per row help.', 'Rocks and logs block some squares. Plan around them.', 'Pumpkin-heads are tough. Snapjaw can swallow them whole.', 'Gardener Zombies heal their friends. Take them out first!'] },
-  night: { dew: 150, intro: { mailman: 1 },
+  night: { dew: 150, intro: { mailman: 1, wheelbarrow: 3 },
     subs: ['First Night', 'Firefly Lane', 'Midnight Mail', 'Moonbeam Rows', 'Owl Hour', 'Shadow Hedges', 'Lantern Light', 'Witching Hour', 'Starless Sky', 'Dawn Is Coming'],
     tips: ['Very little dew falls at night. Dew Lilies are your lifeline.', 'Mailman Zombies drop a big 50-dew drop when defeated.', 'Spore Puffs and Ivy Snares are cheap ways to hold the line.', 'Save Fire Peppers for the final horde.'] },
   winter: { dew: 125, intro: { parka: 0, skater: 2 },
     subs: ['First Frost', 'Snowed In', 'Skating Season', 'Icicle Alley', 'Blizzard Warning', 'Frozen Pond', 'Snowball Fight', 'Polar Night', 'Deep Freeze', 'The Big Thaw'],
     tips: ['The lanes are icy: zombies walk a little faster here.', 'Parka Zombies cannot be slowed while their hood is up.', 'Skaters race in until something hits them. Keep a shooter in every row.', 'Breeze Bloom pushes zombies back into your line of fire.'] },
-  beach: { dew: 125, intro: {},
+  beach: { dew: 125, intro: { beekeeper: 1 },
     subs: ['Sunny Start', 'Sandcastles', 'Tide Pools', 'Heat Wave', 'Boardwalk', 'Beach Party', 'Sunburn', 'Coconut Grove', 'Storm Clouds', 'The Last Stand'],
     tips: ['Lots of dew falls at the beach, but it dries up fast. Grab it quickly!', 'Every kind of zombie shows up here. Mix up your plants.', 'Thorn Rose hits every zombie in a row. Great against crowds.', 'This is the final world. Good luck!'] }
 };
+WORLD_GEN.grove = { dew: 125, intro: {},
+  subs: ['Rainy Start', 'Puddle Jump', 'Toadstool Ring', 'Drizzle', 'Spore Season', 'Thunder Rolls', 'Moss Maze', 'Downpour', 'Glowcap Night', 'The Compost King'],
+  tips: ['It always rains in the Mushroom Grove: extra dew falls, and the mud slows zombies down.', 'Moon Mushrooms are cheap dew makers. Plant lots of them!', 'Sprinkler Bloom splashes every zombie around it.', 'The biggest Compost Giant of all waits at the end. Good luck!'] };
 const BASE_POOL = { basic: 3, lid: 2, runner: 1.3, barrel: 1, leaper: 1, brute: 0.6 };
 function genBlocked(seed, k) {
   const r = mulberry(seed * 977 + 13), cells = [];
@@ -63,20 +67,62 @@ function genWorldLevels(w) {
     minWave.brute = Math.max(2, 7 - n);
     for (let pw = 1; pw < w; pw++) for (const k in WORLD_GEN[WORLDS[pw].key].intro) pool[k] = 0.8;
     for (const k in def.intro) if (n >= def.intro[k]) { pool[k] = n === def.intro[k] ? 2.4 : 1.4; if (n === def.intro[k]) minWave[k] = 2; }
+    const weather = key === 'grove' ? 'rain' : ({ autumn: { 4: 'wind', 8: 'rain' }, winter: { 4: 'wind', 8: 'wind' }, beach: { 8: 'rain' }, night: { 5: 'wind' } }[key] || {})[n] || null;
     out.push({
-      name: `Level ${w + 1}-${n + 1}`, sub: def.subs[n], world: w, theme: key, waves, flags,
+      name: `Level ${w + 1}-${n + 1}`, sub: def.subs[n], world: w, theme: key, waves, flags, weather, boss: n === 9,
       base: 2 + w * 0.45 + n * 0.12, grow: 0.62 + w * 0.08 + n * 0.035, pool, minWave,
       first: 20, dew: def.dew, interval: Math.max(18, 24 - n * 0.6), tip: def.tips[n % def.tips.length],
-      blocked: n >= 1 ? genBlocked(w * 10 + n, n >= 5 ? 3 : 2) : []
+      blocked: n >= 1 ? genBlocked(w * 10 + n, n >= 5 ? 3 : 2) : [], thunder: key === 'grove' && (n === 5 || n === 9)
     });
   }
   return out;
 }
-const LEVELS = W1_LEVELS.concat(genWorldLevels(1), genWorldLevels(2), genWorldLevels(3), genWorldLevels(4));
+W1_LEVELS[9].boss = true; W1_LEVELS[6].weather = 'rain';
+const LEVELS = W1_LEVELS.concat(genWorldLevels(1), genWorldLevels(2), genWorldLevels(3), genWorldLevels(4), genWorldLevels(5));
+// Daily Challenge: everyone gets the same seeded level each day, with its own plants and a twist.
+const DAILY_TWISTS = [
+  { key: 'fast', name: 'Speedy Zombies', desc: 'Every zombie moves 30% faster.' },
+  { key: 'tough', name: 'Tough Crowd', desc: 'Zombies have 40% more health.' },
+  { key: 'poor', name: 'Dry Spell', desc: 'You start with only 50 dew and less falls from the sky.' },
+  { key: 'rush', name: 'Zombie Rush', desc: 'Waves arrive much closer together.' },
+  { key: 'giant', name: 'Giant Finale', desc: 'A Compost Giant joins the final horde.' },
+  { key: 'storm', name: 'Thunderstorm', desc: 'Rain and thunder all level long.' },
+  { key: 'gusty', name: 'Gusty Day', desc: 'Strong gusts blow the zombies toward you.' },
+  { key: 'narrow', name: 'Narrow Garden', desc: 'Only three rows, but zombies pile in.' }
+];
+function dailyKey(d = new Date()) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function makeDaily(key = dailyKey()) {
+  const seed = key.split('-').reduce((a, n) => a * 37 + +n, 7), r = mulberry(seed);
+  const rpick = arr => arr[Math.floor(r() * arr.length)];
+  const twist = DAILY_TWISTS[Math.floor(r() * DAILY_TWISTS.length)];
+  let world = Math.floor(r() * WORLDS.length);
+  if (['storm', 'gusty'].includes(twist.key) && WORLDS[world].key === 'winter') world = WORLDS.length - 1;
+  const theme = WORLDS[world].key;
+  // plants: always a dew maker and a shooter, then six more at random
+  const others = PLANT_ORDER.filter(k => !['lily', 'berry'].includes(k));
+  for (let i = others.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [others[i], others[j]] = [others[j], others[i]]; }
+  const plants = [r() < 0.7 ? 'lily' : 'moonshroom', 'berry'].concat(others.filter(k => k !== 'moonshroom').slice(0, 6));
+  const pool = { basic: 3, lid: 2 };
+  const extra = BUG_ORDER.filter(k => !['basic', 'lid', 'boss'].includes(k));
+  for (let i = 0; i < 5; i++) pool[rpick(extra)] = 1.2 + r();
+  const rows = twist.key === 'narrow' ? [1, 2, 3] : ALL_ROWS;
+  const L = {
+    name: 'Daily Challenge', sub: twist.name, daily: key, twist: twist.key, world, theme, rows, waves: 10, flags: [5, 10],
+    base: 2.6, grow: 0.75, pool, minWave: { brute: 4 }, first: 20, dew: twist.key === 'poor' ? 50 : 150,
+    interval: twist.key === 'rush' ? 15 : 22, plants, boss: twist.key === 'giant',
+    weather: twist.key === 'storm' ? 'rain' : twist.key === 'gusty' ? 'wind' : theme === 'grove' ? 'rain' : null, thunder: twist.key === 'storm',
+    budgetMult: twist.key === 'narrow' ? 0.8 : 1,
+    blocked: twist.key === 'narrow' ? [] : genBlocked(seed % 1000, 2 + Math.floor(r() * 2)),
+    tip: `Today's twist: ${twist.desc}`
+  };
+  return L;
+}
+const DAILY_IDX = -2;
+function startDaily() { startLevel(DAILY_IDX, false, { level: makeDaily() }); }
 const ENDLESS = { name: 'Endless Horde', sub: 'How long can you last?', endless: true, theme: 'dusk', world: 0, first: 20, dew: 150, interval: 24, tip: 'Waves keep coming and keep getting bigger.' };
 // level index at which each plant becomes available
-const UNLOCK_AT = { lily: 0, berry: 0, stump: 1, puff: 2, frost: 3, gourd: 4, snap: 5, thistle: 6, thorn: 7, pepper: 8, rose: 12, snare: 16, breeze: 23, lobber: 33 };
-const BUG_INTRO = { basic: 0, lid: 1, runner: 3, barrel: 4, leaper: 5, brute: 7, scarecrow: 10, pumpkin: 13, gardener: 16, mailman: 21, parka: 30, skater: 32 };
+const UNLOCK_AT = { lily: 0, berry: 0, stump: 1, puff: 2, frost: 3, gourd: 4, snap: 5, thistle: 6, thorn: 7, pepper: 8, rose: 12, snare: 16, moonshroom: 21, breeze: 23, popcorn: 27, lobber: 33, hedge: 37, sprinkler: 43 };
+const BUG_INTRO = { basic: 0, lid: 1, runner: 3, barrel: 4, leaper: 5, brute: 7, scarecrow: 10, pumpkin: 13, gardener: 16, mailman: 21, parka: 30, skater: 32, gnome: 15, wheelbarrow: 23, beekeeper: 41, boss: 9 };
 const rewardOf = idx => PLANT_ORDER.find(k => UNLOCK_AT[k] === idx + 1) || null;
 const plantsFor = idx => PLANT_ORDER.filter(k => UNLOCK_AT[k] <= idx);
 
@@ -108,16 +154,17 @@ function buildWaves(L) {
   const out = [];
   for (let w = 1; w <= L.waves; w++) {
     const huge = L.flags.includes(w);
-    const budget = Math.max(1, Math.round((L.base + L.grow * (w - 1)) * (huge ? 2.5 : 1)));
+    const budget = Math.max(1, Math.round((L.base + L.grow * (w - 1)) * (huge ? 2.5 : 1) * (L.budgetMult || 1)));
     out.push(makeWave(budget, L.pool, w, L.minWave, huge));
   }
+  if (L.boss) out[out.length - 1].list.push('boss');
   return out;
 }
 function endlessWave(w) {
   const huge = w % 5 === 0;
   const budget = Math.round((3 + 0.75 * (w - 1)) * (huge ? 2.2 : 1));
-  const pool = { basic: 4, lid: 3, runner: 2, barrel: 1.6, leaper: 1.6, brute: 0.5 + w / 15, scarecrow: 1.2, pumpkin: 1.2, gardener: 0.8, mailman: 1, parka: 1.2, skater: 1.2 };
-  return makeWave(budget, pool, w, { lid: 2, runner: 3, mailman: 3, scarecrow: 4, barrel: 5, skater: 6, leaper: 7, pumpkin: 8, parka: 9, brute: 10, gardener: 11 }, huge);
+  const pool = { basic: 4, lid: 3, runner: 2, barrel: 1.6, leaper: 1.6, brute: 0.5 + w / 15, scarecrow: 1.2, pumpkin: 1.2, gardener: 0.8, mailman: 1, parka: 1.2, skater: 1.2, gnome: 1, wheelbarrow: 0.8, beekeeper: 0.8 };
+  return makeWave(budget, pool, w, { gnome: 4, wheelbarrow: 8, beekeeper: 9, lid: 2, runner: 3, mailman: 3, scarecrow: 4, barrel: 5, skater: 6, leaper: 7, pumpkin: 8, parka: 9, brute: 10, gardener: 11 }, huge);
 }
 
 let G = null;
@@ -125,7 +172,7 @@ const cardRect = i => ({ x: 116 + i * 70, y: 12, w: 66, h: 96 });
 const trowelRect = () => ({ x: 116 + G.cards.length * 70 + 4, y: 12, w: 80, h: 96 });
 
 function startLevel(idx, endless = false, opts = {}) {
-  const L = opts.level || (endless ? ENDLESS : LEVELS[idx]);
+  const L = opts.level || (idx === DAILY_IDX ? makeDaily() : endless ? ENDLESS : LEVELS[idx]);
   const rows = L.rows || ALL_ROWS;
   const types = opts.plants || L.plants || (endless ? PLANT_ORDER.slice(0, 10) : plantsFor(idx).slice(0, 10));
   const theme = L.theme || (L.dusk ? 'dusk' : 'day');
@@ -146,6 +193,8 @@ function startLevel(idx, endless = false, opts = {}) {
     tutorial: !!opts.tutorial, demo: !!opts.demo, holdWaves: !!(opts.tutorial || opts.holdWaves), tutCollected: false,
     dewBump: 0, newBug: null, pressCard: -1, pressT: 0, critters: [], critterT: 2,
     theme, blocked: new Set((L.blocked || []).map(([c, r]) => c + ',' + r)), appleT: 14,
+    weather: L.weather || null, zprojs: [], crows: [], gustT: rand(9, 13), gust: 0, thunderT: rand(7, 12), thunder: 0, boss: null, bossVis: 1,
+    stats: { killed: 0, planted: 0, lost: 0, dew: 0 },
     lawn: renderLawn({ rows, theme, blocked: L.blocked || [], seed: (idx + 3) * 17 })
   };
   UI.overlay = null;
@@ -159,6 +208,18 @@ function cellAt(x, y) {
   return { c, r };
 }
 const liveBug = b => !b.dying;
+const heavy = b => b.type === 'brute' || b.type === 'boss';
+const onLawn = b => b.x < GX + COLS * CW + 20;
+// stun / freeze a plant (bombs are too quick to care)
+function stunPlant(p, secs, frozen) {
+  if (!p || p.dead || p.type === 'gourd' || p.type === 'pepper') return;
+  p.stun = Math.max(p.stun || 0, secs); p.frozen = !!frozen || (p.frozen && p.stun > 0);
+}
+function hurtPlant(p, dmg) {
+  if (!p || p.dead) return;
+  p.hp -= dmg; p.flash = 0.08;
+  if (p.hp <= 0) { removePlant(p); G.stats.lost++; Snd.play('gulp'); }
+}
 function addPart(o) {
   if (G.parts.length > 420) G.parts.shift();
   G.parts.push(Object.assign({ x: 0, y: 0, vx: 0, vy: 0, g: 0, life: 0.6, t: 0, size: 4, color: '#ffffff', kind: 'dot', rot: 0, vr: 0, drag: 0 }, o));
@@ -206,7 +267,10 @@ function placePlant(type, c, r) {
   if (type === 'gourd' || type === 'pepper') p.fuse = 0.0001;
   if (type === 'snap') { p.mode = 'idle'; p.p = 0; }
   if (type === 'thorn') p.attack = 0;
+  if (type === 'moonshroom') p.cd = rand(4, 6);
+  if (type === 'popcorn' || type === 'sprinkler') p.cd = 0.6;
   G.grid[r][c] = p; G.plants.push(p);
+  if (G.stats) G.stats.planted++;
   burst(p.x, p.y - 4, 10, ['#7a5532', '#9a6c42', '#5cc244'], { up: 140, max: 160 });
   Snd.play('plant');
   return p;
@@ -222,22 +286,42 @@ function removePlant(p) {
 function spawnBug(type, row, x) {
   const d = BUGS[type];
   const b = { type, row, x: x == null ? W + rand(30, 80) : x, y: rowY(row), hp: d.hp, maxHp: d.hp, armor: d.armor || 0, maxArmor: d.armor || 0,
-    speed: d.speed * rand(0.9, 1.08) * (G.theme === 'winter' ? 1.12 : 1), bite: d.bite, held: 0, healT: 2, skating: type === 'skater', walk: rand(0, 6), eat: 0, eating: null, slow: 0, flash: 0, dying: 0, kind: null, jumped: false, jump: 0, t: 0, biteT: rand(0, 0.4) };
+    speed: d.speed * rand(0.9, 1.08) * (G.theme === 'winter' ? 1.12 : 1), bite: d.bite, held: 0, healT: 2, skating: type === 'skater', walk: rand(0, 6), eat: 0, eating: null, slow: 0, flash: 0, dying: 0, kind: null, jumped: false, jump: 0, t: 0, biteT: rand(0, 0.4),
+    stompT: rand(3, 5), spitT: rand(1.5, 3), throwT: rand(2, 4), stingT: rand(1.5, 2.5), summonT: 6, prick: 0, stompA: 0, actA: 0 };
+  if (G.weather === 'rain') b.speed *= 0.9;
+  if (G.L.twist === 'fast') b.speed *= 1.3;
+  if (G.L.twist === 'tough') { b.hp = b.maxHp = Math.round(b.hp * 1.4); }
   G.bugs.push(b);
+  if (type === 'boss') {
+    b.hp = b.maxHp = 2500 + (G.L.world || 0) * 500;   // the giant grows tougher world by world
+    G.boss = b; G.bossVis = 0;
+    showMsg('The Compost Giant is coming!', { color: '#ff6b4a', size: 60, dur: 3 });
+    Snd.play('roar'); G.shake = Math.max(G.shake, 10);
+  }
   return b;
 }
-function bugRadius(b) { return BUGS[b.type].size * (b.type === 'brute' ? 1.1 : 0.95); }
+function bugRadius(b) { return BUGS[b.type].size * (heavy(b) ? 1.1 : 0.95); }
 function damageBug(b, dmg, o = {}) {
   if (b.dying) return;
   b.flash = 0.09;
   if (b.skating) { b.skating = false; b.speed = 18 * rand(0.95, 1.05); burst(b.x + 10, b.y - 4, 8, ['#e6f4ff', '#ffffff'], { up: 40, max: 120, g: 100 }); }
+  if (o.kind === 'burn' && b.type === 'scarecrow') dmg *= 2;   // straw burns!
+  if (o.kind === 'burn' && b.type === 'boss') dmg = Math.min(dmg, 700);
   if (b.armor > 0 && !o.pierce) {
     const a = Math.min(b.armor, dmg); b.armor -= a; dmg -= a;
     if (b.armor <= 0) {
       Snd.play('break');
       if (b.type === 'lid') addPart({ x: b.x - 44, y: b.y - 70, vx: 90, vy: -200, g: 700, life: 1.2, kind: 'lidfall', rot: 0, vr: 7 });
-      if (b.type === 'barrel') { burst(b.x + 4, b.y - 50, 16, ['#b07a42', '#7a4a22', '#8a5a2e'], { kind: 'shard', up: 160, s0: 5, s1: 10 }); b.speed *= 1.6; }
-      if (b.type === 'scarecrow') addPart({ x: b.x - 6, y: b.y - 120, vx: 80, vy: -240, g: 600, life: 1.3, kind: 'hatfall', rot: 0, vr: 5 });
+      if (b.type === 'barrel') { // the empty barrel rolls on ahead and smashes into the first plant
+        burst(b.x + 4, b.y - 50, 10, ['#b07a42', '#7a4a22', '#8a5a2e'], { kind: 'shard', up: 160, s0: 5, s1: 10 }); b.speed *= 1.6;
+        if (onLawn(b)) G.zprojs.push({ kind: 'barrel', row: b.row, x: b.x - 30, y: b.y - 22, vx: -240, dmg: 300, t: 0 });
+      }
+      if (b.type === 'scarecrow') {
+        addPart({ x: b.x - 6, y: b.y - 120, vx: 80, vy: -240, g: 600, life: 1.3, kind: 'hatfall', rot: 0, vr: 5 });
+        G.crows.push({ x: b.x - 4, y: b.y - 128, t: 0, state: 'seek', vx: 0, vy: 0 }); Snd.play('caw');
+      }
+      if (b.type === 'wheelbarrow') hurryBarrow(b);
+      if (b.type === 'beekeeper') burst(b.x, b.y - 120, 10, ['#ffd23a', '#3a2a10'], { up: 80, g: 0, max: 200 });
       if (b.type === 'parka') burst(b.x - 6, b.y - 100, 14, ['#f2ece0', '#4f98d8'], { up: 120, s0: 3, s1: 6 });
       if (b.type === 'pumpkin') burst(b.x - 8, b.y - 110, 16, ['#f0801e', '#ffb04a', '#c85a10'], { kind: 'shard', up: 160, s0: 4, s1: 9 });
     } else if (o.sound !== false && (b.type === 'lid' || b.type === 'barrel')) Snd.play('armor');
@@ -248,19 +332,31 @@ function damageBug(b, dmg, o = {}) {
 function killBug(b, kind) {
   if (b.dying) return;
   b.dying = 0.0001; b.kind = kind; b.eating = null;
+  if (G.stats) G.stats.killed++;
+  if (b === G.boss) {
+    G.boss = null; boomFx(b.x, b.y - 120, 1.4); confettiBurst(b.x, b.y - 160, 50);
+    showMsg('Compost Giant defeated!', { color: '#ffe14a', size: 60, dur: 3 }); Snd.play('reward');
+    for (const o of G.bugs) if (!o.dying && o.summoned) damageBug(o, 300, { pierce: true });
+  }
   G.lastDeath = { x: clamp(b.x, GX + 60, GX + COLS * CW - 60), y: b.y };
   if (b.type === 'mailman') { const d = spawnDrop(clamp(b.x, GX + 30, GX + COLS * CW - 20), b.y - 60, true); d.value = 50; d.ty = b.y - 20; burst(b.x, b.y - 50, 8, ['#fff8e0', '#ffe9b8'], { kind: 'shard', up: 140 }); }
   if (kind === 'eaten') { b.dying = 1; return; }
   if (kind === 'normal') { Snd.play('zdie'); burst(b.x, b.y - 60, 6, ['#9ec27c', '#7a9a5c'], { up: 80, max: 120 }); }
   if (kind === 'zap') burst(b.x, b.y - 30, 10, ['#bff3ff', '#ffffff', '#58c8ff'], { kind: 'spark', g: 0, max: 260 });
 }
+function hurryBarrow(b) {
+  if (b.hurried) return;
+  b.hurried = true; b.armor = 0; b.speed *= 2.2;
+  burst(b.x - 50, b.y - 30, 18, ['#6a4a2a', '#8a6a3a', '#4a3018'], { up: 160, s0: 4, s1: 8 });
+  Snd.play('break');
+}
 function plantBlocking(b) {
-  const reach = b.type === 'brute' ? 60 : 44;
+  const reach = b.type === 'boss' ? 80 : b.type === 'brute' ? 60 : b.type === 'wheelbarrow' && !b.hurried ? 70 : 44;
   let best = null;
   for (let c = 0; c < COLS; c++) {
     const p = G.grid[b.row][c];
     if (!p || p.dead) continue;
-    if ((p.type === 'thorn' && b.type !== 'brute') || p.type === 'snare') continue;
+    if ((p.type === 'thorn' && !heavy(b)) || p.type === 'snare') continue;
     const dx = b.x - p.x;
     if (dx > -18 && dx < reach && (!best || p.x > best.x)) best = p;
   }
@@ -280,6 +376,8 @@ function spawnWave(wi) {
     delay += wave.huge ? rand(0.25, 0.7) : rand(0.6, 1.6);
     hp += BUGS[type].hp + (BUGS[type].armor || 0);
     if (type === 'runner' && Math.random() < 0.3) { G.spawnQ.push({ type, row, delay: delay + 0.3, x: W + 110 }); hp += BUGS.runner.hp; }
+    if (type === 'gnome') for (let k = 1; k <= 2; k++) { G.spawnQ.push({ type, row, delay: delay + k * 0.35, x: W + 30 + k * 46 }); hp += BUGS.gnome.hp; }
+    if (type === 'boss') { const q = G.spawnQ[G.spawnQ.length - 1]; q.row = G.rows[Math.floor(G.rows.length / 2)]; q.delay = delay + 2; }
   });
   G.waveHP = hp;
 }
@@ -326,7 +424,7 @@ function fireZapper(r) {
   G.zapFx.push({ row: r, t: 0 });
   Snd.play('zap');
   G.shake = Math.max(G.shake, 8);
-  for (const b of G.bugs) if (!b.dying && b.row === r && b.x < W + 30) killBug(b, 'zap');
+  for (const b of G.bugs) if (!b.dying && b.row === r && b.x < W + 30) { if (b.type === 'boss') damageBug(b, 1500, { pierce: true }); else killBug(b, 'zap'); }
   G.spawnQ.forEach(q => { if (q.row === r) q.zapSafe = true; });
 }
 
@@ -360,7 +458,7 @@ function updateGame(dt) {
   G.skyT -= dt;
   if (G.skyT <= 0 && G.state === 'play' && !G.holdWaves) {
     spawnDrop(rand(GX + 50, GX + COLS * CW - 50), -30, false);
-    G.skyT = { dusk: rand(15, 19), night: rand(22, 28), beach: rand(6, 8) }[G.theme] || rand(8.5, 11.5);
+    G.skyT = ({ dusk: rand(15, 19), night: rand(22, 28), beach: rand(6, 8) }[G.theme] || rand(8.5, 11.5)) * (G.weather === 'rain' ? 0.7 : 1) * (G.L.twist === 'poor' ? 1.5 : 1);
     if (G.theme === 'beach') G.drops[G.drops.length - 1].life = 5;
   }
   // orchard twist: apples worth 50 dew fall from the trees
@@ -369,6 +467,7 @@ function updateGame(dt) {
     if (G.appleT <= 0) { const d = spawnDrop(rand(GX + 50, GX + COLS * CW - 50), -30, false); d.value = 50; d.kind = 'apple'; d.vy = 110; G.appleT = rand(17, 24); }
   }
 
+  updateWeather(dt);
   // waves
   if (G.state === 'play' && !G.holdWaves) {
     const allSpawned = G.wave >= G.totalWaves;
@@ -412,6 +511,8 @@ function updateGame(dt) {
   updatePlants(dt);
   updateBugs(dt);
   updateProjs(dt);
+  updateZProjs(dt);
+  updateCrows(dt);
   updateDrops(dt);
   updateParts(dt);
   for (const f of G.fires) f.t += dt;
@@ -467,8 +568,105 @@ function drawCritters(t) {
     else drawButterfly(c.x, c.y + Math.sin(t * 6 + c.seed) * 4, t + c.seed, c.hue[0], c.hue[1]);
   }
 }
+// weather: rain (more dew, muddy lanes, thunder in the grove) and wind gusts (zombies get blown forward)
+function updateWeather(dt) {
+  G.thunder = Math.max(0, G.thunder - dt * 2.5);
+  if (!G.weather || G.state !== 'play') return;
+  if (G.weather === 'rain') {
+    if (Math.random() < dt * 6) addPart({ x: rand(GX, GX + COLS * CW), y: rand(GY + 20, GY + ROWS * CH - 6), kind: 'splash', life: 0.35, size: rand(6, 10), color: 'rgba(220,235,255,.8)' });
+    if (G.L.thunder) {
+      G.thunderT -= dt;
+      if (G.thunderT <= 0) { G.thunder = 1; G.thunderT = rand(10, 16); Snd.play('thunder'); }
+    }
+  } else if (G.weather === 'wind' && !G.holdWaves) {
+    G.gustT -= dt; G.gust = Math.max(0, G.gust - dt);
+    if (G.gustT <= 0) { G.gust = 2.6; G.gustT = rand(13, 18); showMsg('Gust of wind!', { size: 40, dur: 1.6, color: '#e6f4ff' }); Snd.play('whoosh'); }
+    if (G.gust > 0 && Math.random() < dt * 30) addPart({ x: W + 10, y: rand(GY, GY + ROWS * CH), vx: -rand(700, 900), vy: rand(-20, 20), g: 0, life: 1.6, kind: 'spark', color: 'rgba(255,255,255,.55)' });
+  }
+}
+// zombie attacks: pumpkin seeds, parka snowballs, rolling barrels, beekeeper bees
+function updateZProjs(dt) {
+  for (let i = G.zprojs.length - 1; i >= 0; i--) {
+    const z = G.zprojs[i]; z.t += dt;
+    if (z.kind === 'snow') {
+      const k = Math.min(1, z.t / z.dur);
+      z.x = lerp(z.x0, z.tx, k); z.y = lerp(z.y0, z.ty, k) - Math.sin(k * Math.PI) * 110;
+      if (k >= 1) {
+        const p = z.target;
+        if (p && !p.dead) { stunPlant(p, 2.5, true); hurtPlant(p, 10); }
+        burst(z.x, z.y, 12, ['#ffffff', '#dff4ff'], { max: 160, s0: 2, s1: 5 }); Snd.play('ice');
+        G.zprojs.splice(i, 1);
+      }
+      continue;
+    }
+    if (z.kind === 'bee') {
+      const p = z.target;
+      if (!p || p.dead) { z.y -= 200 * dt; z.x += 60 * dt; if (z.t > 1.5) G.zprojs.splice(i, 1); continue; }
+      const tx = p.x + Math.sin(z.t * 9) * 10, ty = p.y - 60 + Math.cos(z.t * 11) * 8;
+      const dx = tx - z.x, dy = ty - z.y, d = Math.hypot(dx, dy);
+      if (d < 14) { stunPlant(p, 3); addPart({ x: p.x, y: p.y - 96, vy: -30, g: 0, life: 0.9, kind: 'text', text: 'Ouch!', size: 18, color: '#ffd23a' }); Snd.play('sting'); G.zprojs.splice(i, 1); continue; }
+      z.x += dx / d * 240 * dt; z.y += dy / d * 240 * dt;
+      continue;
+    }
+    // seeds and barrels travel left along their row and hit the first plant they reach
+    z.x += z.vx * dt;
+    if (z.x < GX - 20) { G.zprojs.splice(i, 1); continue; }
+    let hit = null;
+    for (let c = COLS - 1; c >= 0; c--) {
+      const p = G.grid[z.row][c];
+      if (p && !p.dead && !(p.type === 'puff' && !p.armed) && Math.abs(p.x - z.x) < 26) { hit = p; break; }
+    }
+    if (hit) {
+      hurtPlant(hit, z.dmg);
+      if (z.kind === 'barrel') { burst(z.x, z.y, 16, ['#b07a42', '#7a4a22', '#8a5a2e'], { kind: 'shard', up: 180, s0: 5, s1: 10 }); Snd.play('break'); G.shake = Math.max(G.shake, 5); }
+      else { burst(z.x, z.y, 6, ['#f0e0a0', '#c8a050'], { max: 120 }); Snd.play('hit'); }
+      G.zprojs.splice(i, 1);
+    }
+  }
+}
+// crows fly off a scarecrow's hat and steal dew drops you haven't picked up
+function updateCrows(dt) {
+  for (let i = G.crows.length - 1; i >= 0; i--) {
+    const c = G.crows[i]; c.t += dt;
+    if (c.state === 'seek') {
+      if (!c.drop || !G.drops.includes(c.drop) || c.drop.state !== 'rest') {
+        c.drop = null; let best = 1e9;
+        for (const d of G.drops) if (d.state === 'rest' && !G.crows.some(o => o !== c && o.drop === d)) { const dd = Math.hypot(d.x - c.x, d.y - c.y); if (dd < best) { best = dd; c.drop = d; } }
+      }
+      if (!c.drop) { if (c.t > 1.2) c.state = 'leave'; c.x -= 40 * dt; c.y -= 20 * dt; continue; }
+      const dx = c.drop.x - c.x, dy = c.drop.y - 14 - c.y, d = Math.hypot(dx, dy);
+      if (d < 12) {
+        G.drops.splice(G.drops.indexOf(c.drop), 1); c.carry = c.drop.value; c.drop = null; c.state = 'leave';
+        Snd.play('caw'); burst(c.x, c.y + 14, 6, ['#e9fbff', '#7fdcff'], { max: 100, g: 0 });
+      } else { c.x += dx / d * 230 * dt; c.y += dy / d * 230 * dt; c.face = dx < 0 ? -1 : 1; }
+    } else {
+      c.x += 200 * dt; c.y -= 160 * dt; c.face = 1;
+      if (c.y < -60 || c.x > W + 60) G.crows.splice(i, 1);
+    }
+  }
+}
+function scareCrow(x, y) {
+  for (const c of G.crows) if (c.state === 'seek' && Math.hypot(c.x - x, c.y - y) < 40) { c.state = 'leave'; c.drop = null; Snd.play('caw'); return true; }
+  return false;
+}
+// 1 star for winning, +1 if no greenhouse zapper was used, +1 if you lost two plants or fewer
+function levelStars() {
+  const zaps = G.zappers.filter(z => z === 'fire' || z === 'gone').length;
+  return { stars: 1 + (zaps === 0 ? 1 : 0) + (G.stats.lost <= 2 ? 1 : 0), zaps };
+}
 function completeLevel() {
-  const d = Save.data;
+  const d = Save.data, res = levelStars();
+  G.result = res;
+  if (G.idx === DAILY_IDX) {
+    const day = G.L.daily, prev = d.daily && d.daily.day === day ? d.daily : null;
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    const streak = prev ? prev.streak : (d.daily && d.daily.day === dailyKey(y) ? (d.daily.streak || 0) + 1 : 1);
+    d.daily = { day, stars: Math.max(res.stars, prev ? prev.stars : 0), streak, total: (d.daily && d.daily.total || 0) + (prev ? 0 : 1) };
+    Save.write(); return;
+  }
+  d.stars = d.stars || {};
+  G.result.best = res.stars > (d.stars[G.idx] || 0);
+  d.stars[G.idx] = Math.max(d.stars[G.idx] || 0, res.stars);
   if (!d.done.includes(G.idx)) d.done.push(G.idx);
   d.unlocked = Math.max(d.unlocked, Math.min(LEVELS.length, G.idx + 2));
   Save.write();
@@ -478,6 +676,7 @@ function updatePlants(dt) {
   for (const p of G.plants.slice()) {
     if (p.dead) continue;
     p.t += dt; p.shoot = Math.max(0, p.shoot - dt * 5); p.flash -= dt;
+    if (p.stun > 0) { p.stun -= dt; if (p.stun <= 0) { p.frozen = false; if (p.wasFrozen) burst(p.x, p.y - 40, 8, ['#ffffff', '#bdefff'], { kind: 'shard', max: 120 }); } p.wasFrozen = p.frozen; continue; }
     switch (p.type) {
       case 'lily':
         p.cd -= dt; p.glow = clamp(1 - p.cd / 2.5, 0, 1);
@@ -534,7 +733,7 @@ function updatePlants(dt) {
             const b = p.target;
             if (b && !b.dying && b.row === p.r && b.x >= p.x - 40 && b.x <= p.x + CW * 1.5) {
               Snd.play('chomp');
-              if (b.type === 'brute') { damageBug(b, 500, { pierce: true }); p.ate = false; }
+              if (heavy(b)) { damageBug(b, 500, { pierce: true }); p.ate = false; }
               else { killBug(b, 'eaten'); p.ate = true; burst(p.x + 40, p.y - 50, 10, ['#e5455b', '#7fd458'], { max: 160 }); }
             } else p.ate = false;
           }
@@ -550,13 +749,13 @@ function updatePlants(dt) {
         break;
       case 'snare': {
         const v = G.bugs.find(b => !b.dying && b.row === p.r && !b.jump && !b.held && Math.abs(b.x - p.x) < 40);
-        if (v) { v.held = v.type === 'brute' ? 3 : 6; v.eating = null; burst(p.x, p.y - 10, 14, ['#7fd458', '#2f6a1e'], { up: 120 }); Snd.play('chomp'); removePlant(p); }
+        if (v) { v.held = v.type === 'boss' ? 1.5 : v.type === 'brute' ? 3 : 6; v.eating = null; burst(p.x, p.y - 10, 14, ['#7fd458', '#2f6a1e'], { up: 120 }); Snd.play('chomp'); removePlant(p); }
         break;
       }
       case 'breeze':
         p.cd -= dt;
         if (p.cd <= 0 && G.bugs.some(b => !b.dying && b.row === p.r && b.x > p.x && b.x < p.x + CW * 4.5 && b.x < W - 10)) {
-          for (const b of G.bugs) if (!b.dying && b.row === p.r && b.x > p.x && b.x < p.x + CW * 4.5 && !b.jump) { b.x += b.type === 'brute' ? 15 : 55; b.eating = null; }
+          for (const b of G.bugs) if (!b.dying && b.row === p.r && b.x > p.x && b.x < p.x + CW * 4.5 && !b.jump) { b.x += b.type === 'boss' ? 4 : b.type === 'brute' ? 15 : b.type === 'gnome' ? 110 : 55; b.eating = null; }
           for (let k = 0; k < 10; k++) addPart({ x: p.x + 30 + k * 30, y: p.y - 60 + rand(-25, 25), vx: 420, vy: 0, g: 0, life: 0.45, kind: 'spark', color: 'rgba(255,255,255,.85)' });
           p.shoot = 1; Snd.play('whoosh'); p.cd = 6;
         }
@@ -578,8 +777,27 @@ function updatePlants(dt) {
         p.cd -= dt; p.attack = Math.max(0, p.attack - dt * 4);
         if (p.cd <= 0) {
           let any = false;
-          for (const b of G.bugs) if (!b.dying && b.row === p.r && !b.jump && Math.abs(b.x - p.x) < 54 && b.type !== 'brute') { damageBug(b, 20, { pierce: true, sound: false }); any = true; }
+          for (const b of G.bugs) if (!b.dying && b.row === p.r && !b.jump && Math.abs(b.x - p.x) < 54 && !heavy(b)) { damageBug(b, 20, { pierce: true, sound: false }); any = true; }
           if (any) { p.attack = 1; p.cd = 1.0; Snd.play('hit'); }
+        }
+        break;
+      case 'moonshroom':
+        p.cd -= dt; p.glow = clamp(1 - p.cd / 2, 0, 1);
+        if (p.cd <= 0) { const d = spawnDrop(p.x, p.y - 44, true); d.value = 15; d.small = true; p.cd = 15; }
+        break;
+      case 'popcorn':
+        p.cd -= dt;
+        if (p.cd <= 0 && laneTarget(p)) { G.projs.push({ kind: 'kernel', row: p.r, x: p.x + 22, y: p.y - 60, vx: 520, dmg: 20, t: 0, hits: 0, hit: new Set(), target: null }); p.shoot = 1; Snd.play('pop'); p.cd = 1.7; }
+        break;
+      case 'sprinkler':
+        p.cd -= dt;
+        if (p.cd <= 0) {
+          const hits = G.bugs.filter(b => !b.dying && Math.abs(b.row - p.r) <= 1 && Math.abs(b.x - p.x) < CW * 1.5 && !b.jump && onLawn(b));
+          if (hits.length) {
+            for (const b of hits) { damageBug(b, 18, { sound: false }); burst(b.x, b.y - 50, 4, ['#bfe8ff', '#58b8f0'], { max: 90, g: 300 }); }
+            for (let k = 0; k < 14; k++) { const a = k * TAU / 14; addPart({ x: p.x, y: p.y - 58, vx: Math.cos(a) * 260, vy: Math.sin(a) * 160 - 60, g: 400, life: 0.5, size: 3.5, color: '#9fd8ff' }); }
+            p.shoot = 1; Snd.play('splash'); p.cd = 2.2;
+          } else p.cd = 0.3;
         }
         break;
     }
@@ -598,8 +816,11 @@ function updateBugs(dt) {
       continue;
     }
     b.t += dt; b.flash -= dt;
-    const sf = b.slow > 0 ? 0.5 : 1;
+    const sf = (b.slow > 0 ? 0.5 : 1) * (G.gust > 0 ? 1.7 : 1);
     b.slow -= dt;
+    b.y += (rowY(b.row) - b.y) * Math.min(1, dt * 7);   // glide when changing lanes
+    b.stompA = Math.max(0, b.stompA - dt * 3); b.actA = Math.max(0, b.actA - dt * 3);
+    if (!b.held && !b.jump) bugAbility(b, dt);
     if (b.type === 'gardener') {
       b.healT -= dt;
       if (b.healT <= 0) {
@@ -621,9 +842,18 @@ function updateBugs(dt) {
     if (!b.eating) {
       const p = plantBlocking(b);
       if (p) {
-        if (b.type === 'leaper' && !b.jumped) {
+        const lane = b.type === 'runner' && !b.laneSwitched ? switchLane(b) : null;
+        if (lane != null) {
+          // the jogger dodges into the next lane instead of stopping to eat
+        } else if (b.type === 'wheelbarrow' && !b.hurried && p.type !== 'gourd' && p.type !== 'pepper') {
+          // dumps its load of dirt on the plant, then hurries on
+          if (p.type === 'stump' || p.type === 'hedge') hurtPlant(p, 600);
+          else { removePlant(p); G.stats.lost++; addPart({ x: p.x, y: p.y - 30, vy: -30, g: 0, life: 1, kind: 'text', text: 'Buried!', size: 20, color: '#e8c890' }); }
+          Snd.play('dig'); burst(p.x, p.y - 20, 22, ['#6a4a2a', '#8a6a3a', '#4a3018'], { up: 200, s0: 4, s1: 9 });
+          hurryBarrow(b);
+        } else if (b.type === 'leaper' && !b.jumped) {
           b.jump = 0.0001; b.jx0 = b.x; b.jx1 = p.x - CW * 0.85; Snd.play('hop');
-        } else if (p.type === 'thorn' && b.type === 'brute') {
+        } else if (p.type === 'thorn' && heavy(b)) {
           removePlant(p); Snd.play('break'); burst(p.x, p.y - 6, 14, ['#4f8a2c', '#c79a5a'], { up: 120 });
         } else if (p.type === 'gourd' || p.type === 'pepper') {
           // these are about to blow; bugs just stand in front
@@ -636,8 +866,9 @@ function updateBugs(dt) {
       b.eat = (b.eat + dt * 3.2 * sf) % 1;
       p.hp -= b.bite * dt * sf;
       b.biteT -= dt * sf;
+      if (p.type === 'hedge') { b.prick += dt; if (b.prick >= 0.5) { b.prick = 0; damageBug(b, 7, { pierce: true, sound: false }); } }
       if (b.biteT <= 0) { b.biteT = 0.45; p.flash = 0.06; if (G.chompT <= 0) { Snd.play('bite'); G.chompT = 0.12; } if (Math.random() < 0.6) burst(p.x + 20, p.y - 40, 2, ['#7fd458', '#5cc244'], { max: 90, up: 60 }); }
-      if (p.hp <= 0) { removePlant(p); Snd.play('gulp'); b.eating = null; }
+      if (p.hp <= 0) { removePlant(p); G.stats.lost++; Snd.play('gulp'); b.eating = null; }
     } else {
       const blockedByFuse = plantBlocking(b);
       if (!(blockedByFuse && (blockedByFuse.type === 'gourd' || blockedByFuse.type === 'pepper'))) {
@@ -649,6 +880,76 @@ function updateBugs(dt) {
     if (b.x < GX - 26) {
       if (G.zappers[b.row] === 'ready') fireZapper(b.row);
       else if (b.x < 120 && G.zappers[b.row] !== 'fire') loseGame(b);
+    }
+  }
+}
+// the jogger hops into a neighbouring lane once, if there is one
+function switchLane(b) {
+  const opts = [b.row - 1, b.row + 1].filter(r => G.rows.includes(r));
+  if (!opts.length) { b.laneSwitched = true; return null; }
+  const ahead = r => G.plants.filter(p => p.r === r && p.x < b.x + 10 && p.type !== 'snare').length;
+  opts.sort((a, c) => ahead(a) - ahead(c) || Math.random() - 0.5);
+  b.laneSwitched = true; b.row = opts[0]; b.eating = null;
+  burst(b.x, b.y - 4, 8, ['#c8b89a', '#a89878'], { up: 60, max: 110, g: 200 }); Snd.play('hop');
+  return b.row;
+}
+function plantsNear(b, xr, rr) { return G.plants.filter(p => !p.dead && Math.abs(p.r - b.row) <= rr && Math.abs(p.x - b.x) < xr); }
+function bugAbility(b, dt) {
+  if (!onLawn(b) || G.state !== 'play') return;
+  switch (b.type) {
+    case 'brute': case 'boss': { // ground stomp stuns nearby plants
+      b.stompT -= dt;
+      if (b.stompT > 0) break;
+      const big = b.type === 'boss', near = plantsNear(b, CW * (big ? 2.2 : 1.6), 1);
+      if (!near.length) { b.stompT = 0.8; break; }
+      for (const p of near) stunPlant(p, 2);
+      b.stompA = 1; b.stompT = big ? rand(7, 9) : rand(6, 8);
+      addPart({ x: b.x - 10, y: b.y, kind: 'ring', life: 0.5, size: big ? 200 : 130, color: '#c8a878' });
+      burst(b.x - 10, b.y, 18, ['#c8b89a', '#a89878', '#8a6a3a'], { up: 140, max: 260, g: 600 });
+      G.shake = Math.max(G.shake, big ? 12 : 6); Snd.play('stomp');
+      break;
+    }
+    case 'pumpkin': { // spits pumpkin seeds at plants ahead (while its pumpkin is on)
+      if (b.armor <= 0 || b.eating) break;
+      b.spitT -= dt;
+      if (b.spitT > 0) break;
+      const tgt = G.plants.some(p => !p.dead && p.r === b.row && p.x < b.x && b.x - p.x < CW * 3.5);
+      if (!tgt) { b.spitT = 0.5; break; }
+      G.zprojs.push({ kind: 'seed', row: b.row, x: b.x - 34, y: b.y - 96, vx: -320, dmg: 30, t: 0 });
+      b.actA = 1; b.spitT = rand(3.5, 4.5); Snd.play('spit');
+      break;
+    }
+    case 'parka': { // lobs snowballs that freeze a plant solid
+      if (b.eating) break;
+      b.throwT -= dt;
+      if (b.throwT > 0) break;
+      let tgt = null;
+      for (const p of G.plants) if (!p.dead && p.r === b.row && p.x < b.x && b.x - p.x < CW * 5 && !(p.stun > 0) && (!tgt || p.x > tgt.x)) tgt = p;
+      if (!tgt) { b.throwT = 0.6; break; }
+      G.zprojs.push({ kind: 'snow', row: b.row, x0: b.x - 20, y0: b.y - 110, x: b.x - 20, y: b.y - 110, tx: tgt.x, ty: tgt.y - 40, t: 0, dur: 0.8, target: tgt });
+      b.actA = 1; b.throwT = rand(6, 8); Snd.play('whoosh');
+      break;
+    }
+    case 'beekeeper': { // bees sting nearby plants while it eats (until its veil comes off)
+      if (b.armor <= 0 || !b.eating) break;
+      b.stingT -= dt;
+      if (b.stingT > 0) break;
+      const near = plantsNear(b, CW * 1.6, 1).filter(p => !(p.stun > 0)).slice(0, 2);
+      for (const p of near) G.zprojs.push({ kind: 'bee', row: b.row, x: b.x - 10, y: b.y - 120, t: rand(0, 1), target: p });
+      b.stingT = 5; if (near.length) Snd.play('buzz');
+      break;
+    }
+  }
+  if (b.type === 'boss') { // calls in helpers
+    b.summonT -= dt;
+    if (b.summonT <= 0) {
+      b.summonT = rand(9, 12);
+      const rows = [b.row - 1, b.row + 1].filter(r => G.rows.includes(r));
+      for (const r of rows.length ? rows : [b.row]) {
+        const h = spawnBug(pick(['basic', 'basic', 'runner', 'lid', 'gnome']), r, b.x + 30); h.summoned = true;
+        for (let k = 0; k < 8; k++) addPart({ x: h.x + rand(-20, 20), y: h.y - rand(0, 30), vx: rand(-30, 30), vy: rand(-90, -40), kind: 'smoke', life: rand(0.6, 1.1), size: rand(16, 28), color: '#6a8a4a' });
+      }
+      b.actA = 1; Snd.play('roar');
     }
   }
 }
@@ -673,6 +974,33 @@ function updateProjs(dt) {
         burst(pr.x, pr.y, 8, ['#8a4e22', '#c88a52', '#8ccf4a'], { max: 160 });
         G.projs.splice(i, 1);
       }
+      continue;
+    }
+    if (pr.kind === 'kernel') { // bounces from zombie to zombie, up to 3 hits
+      pr.t += dt;
+      const hitIt = b => {
+        damageBug(b, pr.dmg); pr.hit.add(b); pr.hits++; Snd.play('hit');
+        burst(pr.x, pr.y, 6, ['#fffaf0', '#ffe680'], { max: 130 });
+        let next = null, bd = 230;
+        if (pr.hits < 3) for (const o of G.bugs) {
+          if (o.dying || pr.hit.has(o) || o.jump || Math.abs(o.row - b.row) > 1 || !onLawn(o)) continue;
+          const d = Math.hypot(o.x - b.x, (o.row - b.row) * CH); if (d < bd) { bd = d; next = o; }
+        }
+        pr.target = next; return !next;
+      };
+      if (pr.target) {
+        const b = pr.target;
+        if (b.dying) { G.projs.splice(i, 1); continue; }
+        const tx = b.x, ty = b.y - 56, dx = tx - pr.x, dy = ty - pr.y, d = Math.hypot(dx, dy);
+        if (d < 18) { if (hitIt(b)) { G.projs.splice(i, 1); } else pr.row = pr.target.row; continue; }
+        pr.x += dx / d * 560 * dt; pr.y += dy / d * 560 * dt - Math.sin(pr.t * 12) * 0.6;
+        continue;
+      }
+      pr.x += pr.vx * dt;
+      if (pr.x > W + 30) { G.projs.splice(i, 1); continue; }
+      let tgt = null;
+      for (const b of G.bugs) if (!b.dying && b.row === pr.row && !(b.jump > 0.15 && b.jump < 0.85) && Math.abs(b.x - pr.x) < bugRadius(b) && (!tgt || b.x < tgt.x)) tgt = b;
+      if (tgt) { if (hitIt(tgt)) G.projs.splice(i, 1); else pr.row = pr.target.row; }
       continue;
     }
     pr.x += pr.vx * dt; pr.t += dt;
@@ -748,6 +1076,7 @@ function plantSpriteKey(p) {
     case 'stump': { const f = p.hp / p.maxHp; return 'stump:' + (f >= 0.66 ? 0 : f >= 0.5 ? 1 : f >= 0.33 ? 2 : 3) + ((p.t % 5.1) < 0.13 ? 'b' : ''); }
     case 'puff': return p.armed ? 'puff:a' : 'puff:u' + Math.floor((p.arm || 0) * 4) + ((p.t % 2) < 1 ? 'z' : '');
     case 'thorn': return 'thorn:' + Math.round((p.attack || 0) * 2);
+    case 'hedge': return 'hedge:' + (p.hp / p.maxHp >= 0.5 ? 0 : 1) + (blink ? 'b' : '');
     default: return p.type + (blink ? ':b' : ':o');
   }
 }
@@ -758,6 +1087,7 @@ function plantSpriteState(p, key) {
   if (p.type === 'puff' && !p.armed) { s.arm = (+key[6]) / 4; s.t = key.endsWith('z') ? 0.5 : 1.5; }
   if (p.type === 'snap' && p.mode === 'chew') { const f = +key.slice(-1); s.t = Math.asin([-1, 0, 1, 0][f]) / 9; s.mode = 'chew'; }
   if (p.type === 'thorn') s.attack = (+key.split(':')[1]) / 2;
+  if (p.type === 'hedge') { s.hpFrac = key[6] === '0' ? 1 : 0.3; s.t = key.endsWith('b') ? 0.05 : 0.5; }
   return s;
 }
 function drawPlantEntity(p) {
@@ -779,15 +1109,30 @@ function drawPlantEntity(p) {
       case 'frost': ctx.translate(0, Math.sin(t * 2.4) * 1.5); ctx.scale(1 + sh * 0.08, 1 - sh * 0.06); break;
       case 'thistle': ctx.translate(0, Math.sin(t * 3.1) * 1.2); ctx.scale(1 + sh * 0.08, 1 - sh * 0.06); break;
       case 'puff': if (p.armed) { const k = 1 + Math.sin(t * 7) * 0.035; ctx.scale(k, 1 / k); } break;
-      case 'rose': case 'lobber': case 'breeze': ctx.translate(0, Math.sin(t * 2.4) * 1.2); ctx.scale(1 + sh * 0.08, 1 - sh * 0.07); break;
+      case 'rose': case 'lobber': case 'breeze': case 'popcorn': ctx.translate(0, Math.sin(t * 2.4) * 1.2); ctx.scale(1 + sh * 0.08, 1 - sh * 0.07); break;
+      case 'sprinkler': ctx.translate(0, Math.sin(t * 2) * 1.2); ctx.scale(1 + sh * 0.06, 1 - sh * 0.06); break;
+      case 'moonshroom': { const k = 1 + Math.sin(t * 2.2) * 0.03; ctx.scale(k, 1 / k); break; }
+      case 'hedge': ctx.scale(1 + Math.sin(t * 1.4) * 0.012, 1); break;
       case 'snap': if (p.mode === 'idle') ctx.scale(1, 1 + Math.sin(t * 2.2) * 0.025); break;
     }
     Sprites.draw(spr, 0, 0);
     if (p.flash > 0) Sprites.flash(spr, 0, 0, 0.45);
     if (p.type === 'lily' && p.glow > 0) { circ(0, -74, 18 + p.glow * 10); ctx.fillStyle = `rgba(170,235,255,${0.35 * p.glow})`; ctx.fill(); drawDew(0, -74, 11 + p.glow * 3, 0); }
     if (p.type === 'puff' && p.armed) { const g = (Math.sin(t * 6) + 1) / 2; circ(0, -50, 9 + g * 4); ctx.fillStyle = `rgba(200,255,100,${0.25 + g * 0.35})`; ctx.fill(); }
+    if (p.type === 'moonshroom' && p.glow > 0) { circ(0, -50, 10 + p.glow * 6); ctx.fillStyle = `rgba(170,235,255,${0.3 * p.glow})`; ctx.fill(); drawDew(0, -50, 7 + p.glow * 3, 0); }
   }
   ctx.restore();
+  if (p.stun > 0) {
+    if (p.frozen) { // frozen solid in an ice block
+      ctx.save(); ctx.globalAlpha = Math.min(1, p.stun * 2);
+      rrect(p.x - 38, p.y - 96, 76, 98, 12); ctx.fillStyle = 'rgba(180,225,255,.45)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.stroke();
+      P(); ctx.moveTo(p.x - 26, p.y - 80); ctx.lineTo(p.x - 12, p.y - 88); ctx.moveTo(p.x - 28, p.y - 64); ctx.lineTo(p.x - 20, p.y - 70); ctx.lineWidth = 3; ctx.stroke();
+      ctx.restore();
+    } else for (let k = 0; k < 3; k++) { // dizzy stars
+      const a = G.time * 4 + k * TAU / 3;
+      star(p.x + Math.cos(a) * 22, p.y - 92 + Math.sin(a) * 6, 7, '#ffe14a');
+    }
+  }
   if (p.type !== 'gourd' && p.type !== 'pepper' && p.hp < p.maxHp && G.bugs.some(b => b.eating === p)) {
     const w = 46, f = clamp(p.hp / p.maxHp, 0, 1);
     rrect(p.x - w / 2, p.y + 6, w, 6, 3); ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fill();
@@ -796,11 +1141,13 @@ function drawPlantEntity(p) {
 }
 const WALK_FRAMES = 8, EAT_FRAMES = 5;
 function drawBugEntity(b) {
-  const big = b.type === 'brute' ? 1.3 : 1;
+  const big = b.type === 'boss' ? 2.3 : b.type === 'brute' ? 1.3 : b.type === 'gnome' ? 0.7 : 1;
   const d = b.dying;
   ctx.save();
   if (!(d && b.kind !== 'normal' && d > 0.6)) shadow(b.x + 2, b.y + 2, 28 * big, 0.25 * (1 - (d || 0)));
   ctx.translate(b.x, b.y);
+  if (b.stompA > 0) { const k = Math.sin(b.stompA * Math.PI) * 0.12; ctx.scale(1 + k, 1 - k); }
+  if (b.actA > 0) ctx.rotate(-Math.sin(b.actA * Math.PI) * 0.08);
   if (b.jump > 0) ctx.translate(0, -Math.sin(Math.min(1, b.jump) * Math.PI) * 95);
   const armorStage = b.maxArmor ? Math.ceil((b.armor / b.maxArmor) * 3) : 0;
   const procedural = b.jump > 0 || (d && b.kind !== 'normal');
@@ -839,6 +1186,12 @@ function drawBugEntity(b) {
   if (!d && b.slow > 0 && Math.random() < 0.08) addPart({ x: b.x + rand(-20, 20), y: b.y - rand(10, 60), vy: -20, life: 0.6, size: 2.5, color: '#e6fbff' });
 }
 function drawProj(pr) {
+  if (pr.kind === 'kernel') {
+    ctx.save(); ctx.translate(pr.x, pr.y); ctx.rotate(pr.t * 7);
+    for (const [x, y, r] of [[-4, -2, 6], [4, -3, 5.5], [0, 4, 5.5]]) { circ(x, y, r); fst('#fffaf0', 2); }
+    circ(1, 1, 3); fs('#f0b020');
+    ctx.restore(); return;
+  }
   if (pr.kind === 'nut') { shadow(pr.x, rowY(pr.row) + 2, 8, 0.15); ctx.save(); ctx.translate(pr.x, pr.y); ctx.rotate(pr.t * 9); chestnut(0, 0, 8); ctx.restore(); return; }
   if (pr.kind === 'rose') {
     ctx.save(); ctx.translate(pr.x, pr.y);
@@ -863,6 +1216,63 @@ function drawProj(pr) {
     ctx.restore();
   }
 }
+function drawZProj(z) {
+  if (z.kind === 'seed') {
+    ctx.save(); ctx.translate(z.x, z.y); ctx.rotate(z.t * 14);
+    ell(0, 0, 7, 4.5); fst('#f4e6b0', 2); ctx.restore(); return;
+  }
+  if (z.kind === 'snow') { shadow(z.x, rowY(z.row) + 2, 9, 0.15); circ(z.x, z.y, 10); fs(rg(z.x - 3, z.y - 3, 1, z.x, z.y, 12, ['#ffffff', '#dfe8f2'])); st(2.4); return; }
+  if (z.kind === 'bee') {
+    ctx.save(); ctx.translate(z.x, z.y);
+    const f = Math.sin(z.t * 60) * 0.5 + 0.5;
+    ell(-2, -7, 5, 3 + f * 3); ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fill(); ell(3, -7, 5, 3 + f * 3); ctx.fill();
+    ell(0, 0, 8, 5.5); fst('#ffd23a', 2); line(-2, -5, -2, 5, 2.4, OUT); line(3, -5, 3, 5, 2.4, OUT);
+    ctx.restore(); return;
+  }
+  if (z.kind === 'barrel') {
+    shadow(z.x, rowY(z.row) + 2, 24, 0.2);
+    ctx.save(); ctx.translate(z.x, z.y); ctx.rotate(-z.t * 9);
+    circ(0, 0, 22); fs(rg(-6, -6, 2, 0, 0, 24, ['#c89058', '#9a6232', '#7a4a22'])); st(3.2);
+    circ(0, 0, 14); ctx.lineWidth = 3; ctx.strokeStyle = '#5a5a62'; ctx.stroke();
+    line(-20, 0, 20, 0, 2, 'rgba(60,30,10,.5)'); line(0, -20, 0, 20, 2, 'rgba(60,30,10,.5)');
+    ctx.restore();
+  }
+}
+function drawCrow(c) {
+  const flap = Math.sin(c.t * 18);
+  ctx.save(); ctx.translate(c.x, c.y); ctx.scale(c.face || 1, 1);
+  P(); ctx.moveTo(-4, -2); ctx.quadraticCurveTo(-18, -10 - flap * 14, -30, -4 - flap * 18); ctx.quadraticCurveTo(-16, 0, -4, 4); ctx.closePath(); fst('#2a2630', 2);
+  ell(0, 2, 15, 9); fst('#3a3440', 2.4);
+  circ(12, -4, 8); fst('#3a3440', 2.4);
+  P(); ctx.moveTo(18, -6); ctx.lineTo(28, -2); ctx.lineTo(18, 0); ctx.closePath(); fst('#f0b020', 1.6);
+  circ(14, -6, 2.6); fs('#ffffff'); circ(14.6, -6, 1.3); fs(OUT);
+  P(); ctx.moveTo(4, -2); ctx.quadraticCurveTo(14, -12 - flap * 12, 26, -8 - flap * 16); ctx.quadraticCurveTo(14, -2, 4, 4); ctx.closePath(); fst('#2a2630', 2);
+  if (c.carry) drawDew(4, 16, 8, 0.2);
+  ctx.restore();
+}
+function drawWeather(t) {
+  if (G.weather === 'rain') {
+    ctx.fillStyle = 'rgba(30,40,80,.12)'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(210,225,255,.45)'; ctx.lineWidth = 2; P();
+    for (let i = 0; i < 110; i++) {
+      const sp = 700 + (i % 7) * 40, x = ((i * 137.5 + t * 120) % (W + 200)) - 100, y = ((i * 91.3 + t * sp) % (H + 60)) - 30;
+      ctx.moveTo(x, y); ctx.lineTo(x - 7, y + 20);
+    }
+    ctx.stroke();
+  }
+  if (G.gust > 0) { ctx.fillStyle = `rgba(255,255,255,${0.08 * Math.min(1, G.gust)})`; ctx.fillRect(0, GY, W, ROWS * CH); }
+  if (G.thunder > 0) { ctx.fillStyle = `rgba(240,245,255,${0.55 * G.thunder * G.thunder})`; ctx.fillRect(0, 0, W, H); }
+}
+function drawBossBar() {
+  const b = G.boss; if (!b) return;
+  G.bossVis = Math.min(1, G.bossVis + 0.03);
+  const w = 440, x = (W - w) / 2 + 60, y = 132, f = clamp(b.hp / b.maxHp, 0, 1);
+  ctx.save(); ctx.globalAlpha = G.bossVis;
+  rrect(x - 4, y - 4, w + 8, 26, 13); ctx.fillStyle = 'rgba(40,20,10,.75)'; ctx.fill(); st(3);
+  rrect(x, y, w * f, 18, 9); fs(lg(0, y, 0, y + 18, ['#ff8a5a', '#c8301e']));
+  text('Compost Giant', x + w / 2, y + 9, 17, { fill: '#fff8e0', sw: 4 });
+  ctx.restore();
+}
 function drawPart(p) {
   const k = 1 - p.t / p.life;
   switch (p.kind) {
@@ -873,6 +1283,7 @@ function drawPart(p) {
       ctx.restore(); ctx.globalAlpha = 1; break;
     case 'spark': line(p.x, p.y, p.x - p.vx * 0.04, p.y - p.vy * 0.04, 3 * k + 1, p.color); break;
     case 'smoke': circ(p.x, p.y, p.size * (1.2 - k * 0.5)); ctx.fillStyle = p.color; ctx.globalAlpha = 0.5 * k; ctx.fill(); ctx.globalAlpha = 1; break;
+    case 'splash': ell(p.x, p.y, p.size * (1.4 - k), p.size * (1.4 - k) * 0.35); ctx.lineWidth = 2; ctx.strokeStyle = p.color; ctx.globalAlpha = k; ctx.stroke(); ctx.globalAlpha = 1; break;
     case 'ring': circ(p.x, p.y, p.size * (1 - k * 0.8)); ctx.lineWidth = 10 * k; ctx.strokeStyle = p.color; ctx.globalAlpha = k; ctx.stroke(); ctx.globalAlpha = 1; break;
     case 'lidfall':
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.globalAlpha = Math.min(1, k * 2);
@@ -975,8 +1386,8 @@ function drawHUD() {
   else drawTrowel(tw.x + tw.w / 2, tw.y + tw.h / 2 + 4, 1.1);
   // right side
   const rx = tw.x + tw.w + 20;
-  text(G.endless ? G.L.name : `${G.L.name}`, (rx + 1130) / 2, 34, 28, { fill: '#fff8e0' });
-  if (!G.endless) text(G.L.sub, (rx + 1130) / 2, 60, 16, { fill: '#ffe9b8', sw: 4, body: true, weight: '600' });
+  text(G.endless ? G.L.name : `${G.L.name}`, (rx + 1072) / 2, 34, 28, { fill: '#fff8e0' });
+  if (!G.endless) text(G.L.sub, (rx + 1072) / 2, 60, 16, { fill: '#ffe9b8', sw: 4, body: true, weight: '600' });
   drawProgress(rx + 4, 96, 1262 - rx);
   roundBtn('sound', 1106, 40, 27, () => iconSound(Save.data.sfx || Save.data.music), toggleAllSound);
   roundBtn('speed', 1172, 40, 27, () => iconFast(G.speed > 1), () => { G.speed = G.speed > 1 ? 1 : 2; Snd.play('click'); });
@@ -1030,19 +1441,23 @@ function drawGame(t) {
     for (const f of G.fires) if (f.row === r) drawFire(f);
   }
   for (const z of G.zapFx) drawZap(z);
+  for (const z of G.zprojs) drawZProj(z);
   for (const p of G.parts) drawPart(p);
+  for (const c of G.crows) drawCrow(c);
   drawCritters(t);
   // dew drops
   for (const d of G.drops) {
     if (d.state === 'rest' && d.life - d.t < 2 && (d.t * 8) % 2 < 1) continue;
     const bob = d.state === 'rest' ? Math.sin(d.t * 3) * 2 : 0;
     if (d.kind === 'apple') { ctx.save(); ctx.translate(d.x, d.y + bob); circ(0, 0, 15); fs(rg(-5, -6, 2, 0, 0, 18, ['#ff8a7a', '#e0302a', '#a01818'])); st(2.6); P(); ctx.moveTo(0, -14); ctx.quadraticCurveTo(2, -22, 5, -24); st(2.6); leaf(2, -18, 12, 5, -0.5, '#5cbf45', false, 2); ctx.restore(); }
-    else drawDew(d.x, d.y + bob, 17, 0.6);
+    else drawDew(d.x, d.y + bob, d.small ? 12 : 17, 0.6);
   }
   if (G.sel === 'trowel' && Input.inside && (Input.hover || G.drag)) drawTrowel(Input.x + 10, Input.y - 6, 1.1, -0.3);
+  drawWeather(t);
   ctx.restore();
 
   drawHUD();
+  drawBossBar();
 
   if (G.state === 'intro') {
     const k = G.introT;
@@ -1128,6 +1543,7 @@ function playDown(x, y) {
     const d = G.drops[i];
     if (d.state !== 'fly' && Math.hypot(x - d.x, y - d.y) < 46) { collectDrop(d); return; }
   }
+  if (scareCrow(x, y)) return;
   for (let i = 0; i < G.cards.length; i++) {
     if (inRect(x, y, cardRect(i))) { const was = G.sel; selectCard(i); G.drag = G.sel && G.sel !== was ? { from: 'card' } : null; G.pressCard = i; G.pressT = 0; return; }
   }

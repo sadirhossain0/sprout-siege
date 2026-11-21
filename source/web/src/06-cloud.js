@@ -5,7 +5,7 @@ const CLOUD_CONFIG = window.SPROUT_CLOUD_CONFIG || null;
 
 /* ---------- progress helpers ---------- */
 function progressOf(d) {
-  return { unlocked: d.unlocked, done: d.done.slice(), endlessBest: d.endlessBest, tutDone: !!d.tutDone, seenBugs: d.seenBugs.slice() };
+  return { unlocked: d.unlocked, done: d.done.slice(), endlessBest: d.endlessBest, tutDone: !!d.tutDone, seenBugs: d.seenBugs.slice(), stars: Object.assign({}, d.stars || {}) };
 }
 // Never loses progress: keeps the best of both sides.
 function mergeProgress(into, other) {
@@ -16,6 +16,8 @@ function mergeProgress(into, other) {
   into.endlessBest = Math.max(into.endlessBest || 0, other.endlessBest || 0);
   into.tutDone = !!(into.tutDone || other.tutDone);
   into.seenBugs = Array.from(new Set([...(into.seenBugs || []), ...(other.seenBugs || [])])).filter(k => BUGS[k]);
+  into.stars = Object.assign({}, into.stars || {});
+  for (const k in (other.stars || {})) { const i = +k, n = +other.stars[k]; if (i >= 0 && i < LEVELS.length && n >= 1 && n <= 3) into.stars[i] = Math.max(into.stars[i] || 0, n); }
   return JSON.stringify(progressOf(into)) !== before;
 }
 
@@ -25,19 +27,24 @@ const SaveCode = {
   make(d = Save.data) {
     let doneBits = 0n; for (const i of d.done) if (i >= 0 && i < 64) doneBits |= 1n << BigInt(i);
     let seen = 0; BUG_ORDER.forEach((k, i) => { if (d.seenBugs.includes(k)) seen |= 1 << i; });
-    const body = [d.unlocked.toString(36), doneBits.toString(36), (d.endlessBest || 0).toString(36), seen.toString(36), d.tutDone ? '1' : '0'].join('.');
+    let starBits = 0n; for (const k in (d.stars || {})) { const i = +k; if (i >= 0 && i < 64) starBits |= BigInt(Math.min(3, d.stars[k]) & 3) << BigInt(i * 2); }
+    const parts = [d.unlocked.toString(36), doneBits.toString(36), (d.endlessBest || 0).toString(36), seen.toString(36), d.tutDone ? '1' : '0'];
+    if (starBits) parts.push(starBits.toString(36));
+    const body = parts.join('.');
     return `SPRT-${body}-${this.hash(body)}`.toUpperCase();
   },
   read(code) {
     const m = String(code || '').trim().toUpperCase().replace(/\s+/g, '').match(/^SPRT-([0-9A-Z.]+)-([0-9A-Z]{4})$/);
     if (!m || this.hash(m[1].toLowerCase()).toUpperCase() !== m[2]) return null;
     const p = m[1].toLowerCase().split('.');
-    if (p.length !== 5) return null;
+    if (p.length !== 5 && p.length !== 6) return null;
     const big36 = s => [...s].reduce((a, ch) => a * 36n + BigInt(parseInt(ch, 36)), 0n);
     const doneBits = big36(p[1]), done = [];
     for (let i = 0; i < LEVELS.length; i++) if ((doneBits >> BigInt(i)) & 1n) done.push(i);
     const seen = parseInt(p[3], 36), seenBugs = BUG_ORDER.filter((k, i) => seen & (1 << i));
-    return { unlocked: parseInt(p[0], 36), done, endlessBest: parseInt(p[2], 36), seenBugs, tutDone: p[4] === '1' };
+    const stars = {};
+    if (p[5]) { const sb = big36(p[5]); for (let i = 0; i < LEVELS.length; i++) { const n = Number((sb >> BigInt(i * 2)) & 3n); if (n) stars[i] = n; } }
+    return { unlocked: parseInt(p[0], 36), done, endlessBest: parseInt(p[2], 36), seenBugs, tutDone: p[4] === '1', stars };
   }
 };
 
@@ -56,7 +63,7 @@ const SaveFile = {
     if (j && j.game === 'sprout-siege' && j.progress && typeof j.progress === 'object') {
       const p = j.progress;
       const clean = { unlocked: Math.max(1, parseInt(p.unlocked, 10) || 1), done: Array.isArray(p.done) ? p.done.map(Number).filter(Number.isInteger) : [],
-        endlessBest: Math.max(0, parseInt(p.endlessBest, 10) || 0), tutDone: !!p.tutDone, seenBugs: Array.isArray(p.seenBugs) ? p.seenBugs.filter(k => BUGS[k]) : [] };
+        endlessBest: Math.max(0, parseInt(p.endlessBest, 10) || 0), tutDone: !!p.tutDone, seenBugs: Array.isArray(p.seenBugs) ? p.seenBugs.filter(k => BUGS[k]) : [], stars: p.stars && typeof p.stars === 'object' ? p.stars : {} };
       mergeProgress(Save.data, clean);
       if (Array.isArray(j.loadout)) Save.data.loadout = j.loadout.filter(k => PLANTS[k]).slice(0, 10);
       Save.write(); return true;

@@ -273,18 +273,88 @@ BUG_ART.mailman = s => zombieRig(s, Object.assign({}, ZLOOK.mailman, {
   },
   onHead: () => { P(); ctx.ellipse(2, -10, 27, 18, -0.08, Math.PI, Math.PI * 2); ctx.closePath(); fst('#2f4a7a', 3); ell(-22, -10, 14, 4, -0.2); fst('#24385e', 2.4); circ(4, -22, 4); fst('#ffd23a', 1.8); }
 }));
+
+ZLOOK.gnome = { skin: '#a8cc8c', shirt: '#3f78c8', pattern: null, pants: '#6a4a2a', shoes: '#4a2e18', top: null, sleeves: true, lean: 0.1, scale: 0.62, headScale: 1.12 };
+ZLOOK.wheelbarrow = { skin: '#a2c486', shirt: '#d8a040', pattern: 'plaid', pants: '#4a5a7a', shoes: '#4a3020', top: 'sprout', sleeves: true, lean: 0.22 };
+ZLOOK.beekeeper = { skin: '#a6c88a', shirt: '#f2f0e6', pattern: null, pants: '#f2f0e6', shoes: '#5a5a5a', top: null, sleeves: true, lean: 0.1, bulk: 1.1 };
+ZLOOK.boss = { skin: '#8fae70', shirt: '#6a4a2a', pattern: 'patch', pants: '#4a3a24', shoes: '#2a1e12', top: 'sapling', lean: 0.12, bulk: 1.45, scale: 2.0, headScale: 0.8, armLen: 1.25, belly: true, tongue: true };
+// garden-gnome zombie: tiny, with a felt cap and a beard
+BUG_ART.gnome = s => zombieRig(s, Object.assign({}, ZLOOK.gnome, {
+  onHead: () => {
+    P(); ctx.moveTo(-26, -14); ctx.quadraticCurveTo(-6, -76, 26, -16); ctx.quadraticCurveTo(0, -24, -26, -14); ctx.closePath(); fs(lg(0, -70, 0, -14, ['#ff6a5a', '#d8302a'])); st(3);
+    P(); ctx.moveTo(-24, 6); ctx.quadraticCurveTo(-18, 34, -4, 40); ctx.quadraticCurveTo(6, 30, 12, 12); ctx.quadraticCurveTo(-6, 18, -24, 6); fst('#f4f0e6', 2.6);
+  }
+}));
+// pushes a wheelbarrow full of dirt that soaks up hits (armor)
+BUG_ART.wheelbarrow = s => {
+  const ar = s.armorFrac || 0, ph = s.walk || 0;
+  zombieRig(s, Object.assign({}, ZLOOK.wheelbarrow, {
+    onFront: (st_, fa) => {
+      if (ar <= 0) return;
+      ctx.save(); ctx.translate(fa[0] - 30, 30);
+      const wy = -6 + Math.abs(Math.sin(ph)) * -2;
+      line(32, -26 + wy, 66, -36 + wy, 4, '#7a4a22');
+      P(); ctx.moveTo(-34, -48 + wy); ctx.lineTo(34, -48 + wy); ctx.lineTo(22, -14 + wy); ctx.lineTo(-22, -14 + wy); ctx.closePath();
+      fs(lg(0, -48, 0, -14, ['#5aa0d8', '#2f6aa8'])); st(3.2);
+      P(); ctx.ellipse(0, -48 + wy, 34, 8, 0, Math.PI, 0); fs('#6a4426'); st(2.4);
+      for (const [x, c] of [[-14, '#5cbf45'], [8, '#e24b3b']]) { circ(x, -56 + wy, 6); fst(c, 2); }
+      ctx.save(); ctx.translate(-22, -6 + wy); ctx.rotate(ph * 2);
+      circ(0, 0, 12); fst('#3a3a3a', 3); circ(0, 0, 4); fst('#c8c8c8', 2); line(-10, 0, 10, 0, 2, '#888'); line(0, -10, 0, 10, 2, '#888'); ctx.restore();
+      if (ar <= 0.6) { line(-10, -44 + wy, -2, -28 + wy, 2.4, OUT); line(-2, -28 + wy, -12, -18 + wy, 2.4, OUT); }
+      if (ar <= 0.3) { P(); ctx.moveTo(18, -48 + wy); ctx.lineTo(28, -36 + wy); ctx.lineTo(30, -48 + wy); ctx.closePath(); fs('#1a3a5a'); }
+      ctx.restore();
+    }
+  }));
+};
+// beekeeper with a veiled hat (armor) and a few bees buzzing around
+BUG_ART.beekeeper = s => {
+  const ar = s.armorFrac || 0, t = (s.walk || 0) * 0.5 + (s.eat || 0) * 3;
+  zombieRig(s, Object.assign({}, ZLOOK.beekeeper, {
+    top: ar > 0 ? null : 'daisy',
+    onHead: () => {
+      if (ar > 0) {
+        ell(2, -20, 38, 8); fst('#f4eed8', 3);
+        P(); ctx.moveTo(-18, -22); ctx.quadraticCurveTo(-16, -46, 2, -46); ctx.quadraticCurveTo(20, -46, 20, -22); ctx.closePath(); fst('#f4eed8', 3);
+        P(); ctx.moveTo(-34, -18); ctx.lineTo(-32, 22); ctx.lineTo(34, 22); ctx.lineTo(38, -18); ctx.closePath(); ctx.fillStyle = 'rgba(40,40,40,.35)'; ctx.fill(); st(2);
+        ctx.strokeStyle = 'rgba(30,30,30,.35)'; ctx.lineWidth = 1; for (let x = -30; x < 36; x += 6) { P(); ctx.moveTo(x, -18); ctx.lineTo(x, 22); ctx.stroke(); }
+      }
+      for (let k = 0; k < 3; k++) {
+        const a = t * 3 + k * 2.1, bx = Math.cos(a) * 40, by = -20 + Math.sin(a * 1.3) * 22;
+        ell(bx, by, 5, 3.6); fst('#ffd23a', 1.4); line(bx - 1, by - 3, bx - 1, by + 3, 1.6, OUT);
+        ell(bx + 1, by - 5, 3, 2, -0.4); ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fill();
+      }
+    }
+  }));
+};
+// boss: the Compost Giant, a towering heap of garden waste
+BUG_ART.boss = s => zombieRig(s, Object.assign({}, ZLOOK.boss, {
+  onTorso: () => {
+    for (const [x, y, a, c] of [[-14, -30, -0.6, '#5cbf45'], [12, -16, 0.4, '#b8902a'], [-4, -40, 1.8, '#7fd458'], [16, -36, -1.2, '#c84a2a']]) leaf(x, y, 16, 6, a, c, false, 2);
+    line(-20, -10, 4, -24, 3, '#6a4426'); line(8, -4, 22, -20, 3, '#6a4426');
+  },
+  onHead: () => {
+    for (const [x, a] of [[-14, -2.2], [-4, -1.8], [8, -1.3]]) { P(); ctx.moveTo(x, -22); ctx.lineTo(x + Math.cos(a) * 18, -22 + Math.sin(a) * 18); tube(3, '#7a5a2a'); }
+    circ(-18, -40, 5); fst('#ffd23a', 2); circ(18, -36, 5); fst('#ff8ab0', 2);
+  }
+}));
 const BUGS = {
   basic: { name: 'Farmhand Zombie', hp: 200, speed: 18, bite: 60, cost: 1, size: 30, desc: 'Your everyday garden zombie, mushroom and all. Slow, hungry and very stubborn.', stat: 'Toughness: low' },
   lid: { name: 'Lid Zombie', hp: 200, armor: 380, speed: 18, bite: 60, cost: 2, size: 30, desc: 'Hides behind a dented trash-can lid that soaks up hits.', stat: 'Toughness: medium' },
-  runner: { name: 'Jogger Zombie', hp: 150, speed: 34, bite: 45, cost: 1, size: 28, desc: 'Still out for its morning run. Fast, but not very tough.', stat: 'Speed: fast' },
-  barrel: { name: 'Barrel Zombie', hp: 220, armor: 1100, speed: 11, bite: 60, cost: 4, size: 32, desc: 'Waddles in wearing a wooden barrel. Break the barrel and it speeds up in its spotty shorts.', stat: 'Toughness: high' },
+  runner: { name: 'Jogger Zombie', hp: 150, speed: 34, bite: 45, cost: 1, size: 28, desc: 'Still out for its morning run. Fast, and the first time a plant blocks its way it jogs into the next lane.', stat: 'Dodges into another lane' },
+  barrel: { name: 'Barrel Zombie', hp: 220, armor: 1100, speed: 11, bite: 60, cost: 4, size: 32, desc: 'Waddles in wearing a wooden barrel. Break it and the barrel rolls on ahead and smashes into your first plant.', stat: 'Rolling barrel' },
   leaper: { name: 'Acrobat Zombie', hp: 320, speed: 36, bite: 60, cost: 2, size: 28, desc: 'A circus zombie that somersaults clean over the first plant it meets.', stat: 'Flips over one plant' },
-  brute: { name: 'Brute Zombie', hp: 1600, speed: 10, bite: 220, cost: 8, size: 40, desc: 'A huge zombie that munches through plants fast and stomps Thorn Carpets flat.', stat: 'Toughness: huge' },
-  scarecrow: { name: 'Scarecrow Zombie', hp: 320, armor: 320, speed: 16, bite: 60, cost: 3, size: 30, desc: 'Stuffed with straw and topped with a big straw hat that takes the first hits.', stat: 'Toughness: medium' },
-  parka: { name: 'Parka Zombie', hp: 220, armor: 650, speed: 18, bite: 60, cost: 3, size: 32, desc: 'Bundled up in a puffy parka. It cannot be slowed while the hood is up.', stat: 'Ignores slowing' },
+  brute: { name: 'Brute Zombie', hp: 1600, speed: 10, bite: 220, cost: 8, size: 40, desc: 'A huge zombie that munches through plants fast. Its ground stomps make nearby plants too dizzy to fight.', stat: 'Stomp stuns plants' },
+  scarecrow: { name: 'Scarecrow Zombie', hp: 320, armor: 320, speed: 16, bite: 60, cost: 3, size: 30, desc: 'Stuffed with straw, so fire hurts it twice as much. When its hat falls off, a crow flies out to steal your dew. Tap the crow to scare it.', stat: 'Crow steals dew' },
+  parka: { name: 'Parka Zombie', hp: 220, armor: 650, speed: 18, bite: 60, cost: 3, size: 32, desc: 'Bundled up in a puffy parka. It throws snowballs that freeze a plant solid, and it cannot be slowed while the hood is up.', stat: 'Freezes plants' },
   gardener: { name: 'Gardener Zombie', hp: 260, speed: 16, bite: 60, cost: 3, size: 30, desc: 'Waters its friends with a rusty can, healing every zombie close by. Take it out first!', stat: 'Heals nearby zombies' },
-  pumpkin: { name: 'Pumpkin-head Zombie', hp: 200, armor: 520, speed: 17, bite: 60, cost: 3, size: 30, desc: 'Wears a carved pumpkin over its head. The pumpkin cracks open after enough hits.', stat: 'Toughness: medium' },
+  pumpkin: { name: 'Pumpkin-head Zombie', hp: 200, armor: 520, speed: 17, bite: 60, cost: 3, size: 30, desc: 'Wears a carved pumpkin over its head and spits pumpkin seeds at plants ahead until the pumpkin cracks.', stat: 'Spits seeds' },
   skater: { name: 'Skater Zombie', hp: 220, speed: 42, bite: 60, cost: 2, size: 28, desc: 'Glides in on ice skates at top speed, then slows to a stumble the moment it gets hit.', stat: 'Fast until hit' },
   mailman: { name: 'Mailman Zombie', hp: 260, speed: 18, bite: 60, cost: 2, size: 30, desc: 'Always delivers. Defeat it and its satchel spills a big 50-dew drop.', stat: 'Drops bonus dew' }
 };
-const BUG_ORDER = ['basic', 'lid', 'runner', 'barrel', 'leaper', 'brute', 'scarecrow', 'pumpkin', 'gardener', 'mailman', 'parka', 'skater'];
+Object.assign(BUGS, {
+  gnome: { name: 'Gnome Zombie', hp: 90, speed: 30, bite: 35, cost: 1, size: 22, desc: 'A pint-sized garden gnome that crept out of the flowerbed. They always come in threes, and Breeze Bloom blows them twice as far.', stat: 'Comes in groups of 3' },
+  wheelbarrow: { name: 'Wheelbarrow Zombie', hp: 220, armor: 800, speed: 14, bite: 60, cost: 4, size: 34, desc: 'Pushes a wheelbarrow full of dirt and dumps it on the first plant it reaches, burying it. Then it hurries along.', stat: 'Buries a plant' },
+  beekeeper: { name: 'Beekeeper Zombie', hp: 240, armor: 420, speed: 16, bite: 60, cost: 3, size: 30, desc: 'Its bees sting nearby plants while it eats, stopping them from attacking for a few seconds.', stat: 'Stuns nearby plants' },
+  boss: { name: 'Compost Giant', hp: 4000, speed: 7, bite: 400, cost: 99, size: 64, desc: 'A towering heap of garden waste that guards the end of every world. It calls in helper zombies and stomps the ground as it lumbers along.', stat: 'Boss' }
+});
+const BUG_ORDER = ['basic', 'lid', 'runner', 'barrel', 'leaper', 'brute', 'scarecrow', 'pumpkin', 'gardener', 'mailman', 'parka', 'skater', 'gnome', 'wheelbarrow', 'beekeeper', 'boss'];

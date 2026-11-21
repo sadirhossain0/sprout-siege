@@ -139,6 +139,12 @@ function drawDew(x, y, r, glow = 0) {
 }
 
 /* ---------- text ---------- */
+function starPath(x, y, r, inner = 0.45) {
+  P();
+  for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * inner : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+  ctx.closePath();
+}
+function star(x, y, r, fill, w = 2) { starPath(x, y, r); ctx.lineJoin = 'round'; fs(fill); st(w); }
 function text(str, x, y, size, o = {}) {
   ctx.font = `${o.weight || ''} ${size}px ${o.body ? FONT_B : FONT_D}`;
   ctx.textAlign = o.align || 'center';
@@ -171,18 +177,19 @@ function wrapText(str, x, y, maxW, size, lh, o = {}) {
 /* ---------- storage ---------- */
 const SAVE_KEY = 'sproutSiege.save.v1';
 const Save = {
-  data: { unlocked: 1, done: [], endlessBest: 0, sfx: true, music: true, autoDew: false, tips: true, tutDone: false, seenBugs: [] },
+  data: { unlocked: 1, done: [], endlessBest: 0, sfx: true, music: true, autoDew: false, tips: true, tutDone: false, seenBugs: [], stars: {} },
   load() {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       if (raw) Object.assign(this.data, JSON.parse(raw));
     } catch (e) { /* storage unavailable */ }
     if (!Array.isArray(this.data.seenBugs)) this.data.seenBugs = [];
+    if (!this.data.stars || typeof this.data.stars !== 'object') this.data.stars = {};
   },
   write(noCloud) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) { /* ignore */ } if (!noCloud && typeof Cloud !== 'undefined') Cloud.schedule(); },
   reset() {
     const keep = { sfx: this.data.sfx, music: this.data.music, autoDew: this.data.autoDew, tips: this.data.tips };
-    this.data = Object.assign({ unlocked: 1, done: [], endlessBest: 0, tutDone: false, seenBugs: [] }, keep);
+    this.data = Object.assign({ unlocked: 1, done: [], endlessBest: 0, tutDone: false, seenBugs: [], stars: {}, daily: null }, keep);
     this.write();
   }
 };
@@ -339,6 +346,14 @@ const Snd = {
       case 'groan': this.groan(rand(85, 125), rand(0.9, 1.5), 0.32); break;
       case 'zdie': this.groan(rand(110, 140), 0.6, 0.3, true); break;
       case 'thud': this.tone('sine', 120, 45, 0.25, 0.6); this.noise(0.18, 0.3, 'lowpass', 600, 150); break;
+      case 'stomp': this.tone('sine', 95, 30, 0.45, 0.9); this.noise(0.35, 0.55, 'lowpass', 700, 90, 0.8); break;
+      case 'spit': this.tone('sine', 260, 760, 0.07, 0.3); this.noise(0.06, 0.2, 'bandpass', 2400, 1200, 2); break;
+      case 'caw': this.voice('sawtooth', 620, 0.14, 0.12, 0, null, 1500, 4); this.voice('sawtooth', 560, 0.18, 0.1, 0.17, null, 1400, 4); break;
+      case 'buzz': this.tone('sawtooth', 210, 230, 0.35, 0.05); this.tone('sawtooth', 250, 240, 0.35, 0.04, 0.05); break;
+      case 'sting': this.tone('triangle', 1400, 700, 0.08, 0.2); this.noise(0.05, 0.15, 'highpass', 5000); break;
+      case 'splash': this.noise(0.3, 0.35, 'bandpass', 2600, 700, 0.7); this.tone('sine', 900, 380, 0.1, 0.12); break;
+      case 'thunder': this.noise(2.4, 0.6, 'lowpass', 1000, 70, 0.6); this.tone('sine', 62, 34, 1.8, 0.45); this.noise(0.25, 0.4, 'bandpass', 2200, 600, 0.6); break;
+      case 'roar': this.groan(rand(62, 72), 1.6, 0.55); this.noise(0.9, 0.25, 'lowpass', 600, 120); break;
     }
   },
   // synthesized zombie groan: buzzy source through two vowel-like formant filters
@@ -400,6 +415,11 @@ const SONGS = {
     bpm: 124, drums: 'march',
     chords: 'G Em C D G Em C D',
     lead: 'G4 B4 D5 _ B4 _ D5 G5 | E5 _ D5 B4 G4 _ B4 _ | C5 E5 G5 _ E5 C5 E5 _ | D5 _ F#5 _ A5 _ F#5 D5 | G5 _ D5 _ B4 D5 G5 _ | B5 _ G5 E5 _ B4 E5 _ | C5 _ E5 _ D5 _ F#5 _ | G5 _ D5 B4 G4 _ _ _'
+  },
+  grove: {
+    bpm: 98, drums: 'tick', voice: 'marimba',
+    chords: 'Am G F E Am Dm G Am',
+    lead: 'A4 _ E5 _ D5 C5 B4 _ | G4 _ B4 _ D5 _ G5 _ | F5 _ E5 _ C5 _ A4 _ | E5 _ _ _ G#4 _ B4 _ | C5 _ E5 A5 _ G5 E5 _ | F5 _ D5 _ A4 _ F5 _ | D5 _ G5 _ F5 E5 D5 _ | A4 _ _ _ E4 _ _ _'
   },
   dusk: {
     bpm: 104, drums: 'tick',

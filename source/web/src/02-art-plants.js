@@ -391,3 +391,72 @@ Object.assign(PLANTS, {
   lobber: { name: 'Chestnut Lobber', cost: 150, recharge: 7.5, hp: 300, desc: 'Lobs spiky chestnuts in a high arc, right over lids and other shields.', stat: 'Ignores shields' }
 });
 PLANT_ORDER.push('rose', 'snare', 'breeze', 'lobber');
+
+// --- Moon Mushroom: small glowing mushroom that makes a little dew
+PLANT_ART.moonshroom = (s) => {
+  const t = s.t || 0, g = (Math.sin(t * 2.2) + 1) / 2;
+  circ(0, -26, 26 + g * 4); ctx.fillStyle = `rgba(160,220,255,${0.18 + g * 0.12})`; ctx.fill();
+  rrect(-8, -26, 16, 26, 6); fs(lg(0, -26, 0, 0, ['#f4f0ff', '#cfc4ea'])); st(3);
+  P(); ctx.arc(0, -26, 24, Math.PI, 0); ctx.quadraticCurveTo(0, -18, -24, -26); ctx.closePath();
+  fs(rg(-6, -40, 2, 0, -30, 30, ['#e8f4ff', '#8fb8f0', '#5a6ad0'])); st(3.2);
+  for (const [x, y, r] of [[-12, -34, 3.4], [6, -40, 3], [14, -30, 2.6]]) { circ(x, y, r); fs(`rgba(255,255,220,${0.6 + g * 0.4})`); }
+  const blink = (t % 3.9) < 0.12;
+  if (blink) { closedEye(-4, -15, 3.6); closedEye(5, -15, 3.6); } else { eye(-4, -15, 4.2, 0.2, 0.2); eye(5, -15, 4.2, 0.2, 0.2); }
+  P(); ctx.arc(0.5, -9, 3, 0.15 * Math.PI, 0.85 * Math.PI); st(2);
+};
+// --- Popcorn Pod: pops kernels that bounce between zombies
+PLANT_ART.popcorn = (s) => {
+  const t = s.t || 0, sh = s.shoot || 0;
+  leaf(-2, -4, 32, 10, Math.PI + 0.35, '#7ab848'); leaf(2, -4, 32, 10, -0.35, '#86c450');
+  P(); ctx.moveTo(0, -2); ctx.quadraticCurveTo(-4, -18, 0, -30); tube(7, '#7ab848');
+  ctx.save(); ctx.translate(0, -54 + Math.sin(t * 2.6) * 1.2); ctx.scale(1 + sh * 0.08, 1 - sh * 0.07);
+  for (const a of [-0.9, 0.9]) { ctx.save(); ctx.rotate(a * 0.45); P(); ctx.moveTo(0, 24); ctx.quadraticCurveTo(a * 34, 4, a * 12, -30); ctx.quadraticCurveTo(a * 8, 0, 0, 24); ctx.closePath(); fs(lg(0, -30, 0, 24, ['#b8e07a', '#6fa83a'])); st(2.8); ctx.restore(); }
+  ell(0, 0, 17, 25); fs(lg(0, -25, 0, 25, ['#ffe680', '#f0b020'])); st(3);
+  ctx.fillStyle = 'rgba(200,120,0,.35)'; for (let y = -18; y < 20; y += 7) for (let x = -10; x <= 10; x += 7) { ell(x + (y % 14 ? 3 : 0), y, 2.6, 2); ctx.fill(); }
+  for (const [x, y] of [[-8, -26], [4, -30], [12, -22]]) { circ(x, y, 6); fst('#fffaf0', 2); }
+  eye(-5, -2, 5.6, 0.8, 0); eye(8, -3, 5.2, 0.8, 0);
+  brow(-11, -10, -1, -9, 2.6); brow(4, -10, 13, -11, 2.6);
+  ell(15, 8, 2.6 + sh * 2, 3 + sh * 2); fst('#7a3a10', 2);
+  ctx.restore();
+};
+// --- Bramble Hedge: a tough thorny wall that hurts zombies that bite it
+PLANT_ART.hedge = (s) => {
+  const hp = s.hpFrac == null ? 1 : s.hpFrac, t = s.t || 0;
+  const blobs = [[-20, -22, 20], [0, -26, 24], [20, -22, 20], [-12, -50, 20], [12, -52, 21], [0, -72, 17]];
+  for (const b of blobs) { circ(b[0], b[1], b[2]); st(7); }
+  for (const b of blobs) { circ(b[0], b[1], b[2]); fs(rg(-8, -60, 4, 0, -40, 60, ['#7fd458', '#3f8f34', '#26602a'])); }
+  ctx.strokeStyle = col('#5a3a1a'); ctx.lineWidth = 3;
+  P(); ctx.moveTo(-30, -14); ctx.bezierCurveTo(-10, -40, 10, -10, 30, -40); ctx.stroke();
+  P(); ctx.moveTo(-26, -56); ctx.bezierCurveTo(-4, -36, 14, -70, 26, -50); ctx.stroke();
+  for (const [x, y, a] of [[-24, -8, -2.2], [26, -10, -0.9], [-30, -40, -2.6], [30, -36, -0.5], [-16, -76, -2.1], [16, -78, -1.0], [0, -90, -1.57], [-6, -44, -1.9], [10, -30, -1.2]]) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a); P(); ctx.moveTo(-3, 0); ctx.lineTo(0, -9); ctx.lineTo(3, 0); ctx.closePath(); fst('#fff1c7', 1.6); ctx.restore();
+  }
+  if (hp < 0.5) { ctx.fillStyle = 'rgba(60,40,10,.35)'; ell(14, -30, 9, 6); ctx.fill(); ell(-12, -60, 7, 5); ctx.fill(); }
+  const blink = (t % 4.6) < 0.12;
+  if (blink) { closedEye(-9, -42, 5.5); closedEye(9, -42, 5.5); } else { eye(-9, -42, 6.5, 0.7, hp < 0.5 ? -0.3 : 0); eye(9, -42, 6.5, 0.7, hp < 0.5 ? -0.3 : 0); }
+  brow(-16, -52, -4, -48, 3); brow(16, -52, 4, -48, 3);
+  P(); ctx.moveTo(-6, -28); ctx.quadraticCurveTo(0, -24, 7, -28); st(2.6);
+};
+// --- Sprinkler Bloom: sprays water all around it
+PLANT_ART.sprinkler = (s) => {
+  const t = s.t || 0, sh = s.shoot || 0;
+  leaf(-2, -4, 34, 10, Math.PI + 0.3, '#4caf3a'); leaf(2, -4, 34, 10, -0.3, '#55b83f');
+  P(); ctx.moveTo(0, -2); ctx.quadraticCurveTo(4, -22, 0, -40); tube(6, '#4caf3a');
+  ctx.save(); ctx.translate(0, -58); ctx.rotate(sh * 0.6 + Math.sin(t * 1.6) * 0.05);
+  for (let k = 0; k < 8; k++) { ctx.save(); ctx.rotate(k * TAU / 8); P(); ctx.moveTo(0, -10); ctx.quadraticCurveTo(-11, -26, 0, -32); ctx.quadraticCurveTo(11, -26, 0, -10); ctx.closePath(); fs(lg(0, -32, 0, -10, ['#bfe8ff', '#58b8f0'])); st(2.4); ctx.restore(); }
+  ctx.restore();
+  ctx.save(); ctx.translate(0, -58);
+  circ(0, 0, 15); fs(rg(-4, -5, 1, 0, 0, 17, ['#ffffff', '#cfd8e0', '#8a96a4'])); st(3);
+  for (let k = 0; k < 6; k++) { circ(Math.cos(k * 1.05) * 9, Math.sin(k * 1.05) * 9, 1.8); fs('#4a5a6a'); }
+  eye(-5, -2, 4.6, 0.6, 0); eye(5, -2, 4.6, 0.6, 0);
+  P(); ctx.arc(0, 4, 4, 0.15 * Math.PI, 0.85 * Math.PI); st(2);
+  ctx.restore();
+  if (sh > 0) for (let k = 0; k < 10; k++) { const a = k * TAU / 10 + t; circ(Math.cos(a) * (30 + (1 - sh) * 40), -58 + Math.sin(a) * (20 + (1 - sh) * 26), 3); ctx.fillStyle = `rgba(120,200,255,${sh})`; ctx.fill(); }
+};
+Object.assign(PLANTS, {
+  moonshroom: { name: 'Moon Mushroom', cost: 25, recharge: 7.5, hp: 300, desc: 'A cheap little mushroom that makes a small dew drop every 15 seconds. Great at night.', stat: 'Dew: +15 every 15s' },
+  popcorn: { name: 'Popcorn Pod', cost: 150, recharge: 7.5, hp: 300, desc: 'Pops kernels that bounce from one zombie to the next, hitting up to three.', stat: 'Bounces between zombies' },
+  hedge: { name: 'Bramble Hedge', cost: 125, recharge: 25, hp: 2400, desc: 'A sturdy thorny hedge. Zombies that bite it get pricked the whole time.', stat: 'Tough, hurts biters' },
+  sprinkler: { name: 'Sprinkler Bloom', cost: 175, recharge: 7.5, hp: 300, desc: 'Sprays water in every direction, splashing all zombies in the squares around it.', stat: 'Hits a 3x3 area' }
+});
+PLANT_ORDER.push('moonshroom', 'popcorn', 'hedge', 'sprinkler');

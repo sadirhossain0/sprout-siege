@@ -256,16 +256,20 @@ function levelCoachHooks() {
 const BUG_TIPS = {
   basic: 'Any attack plant can handle these. Just make sure every row has one!',
   lid: 'The lid soaks up hits before the zombie gets hurt. Chestnut Lobbers throw right over it.',
-  runner: 'Joggers are fast but fragile. Frost Ferns slow them right down.',
-  barrel: 'The barrel is very tough. Spore Puffs and Boom Gourds break it fast.',
+  runner: 'Joggers dodge into the next lane the first time they are blocked, so keep shooters in neighbouring rows too.',
+  barrel: 'When the barrel breaks it rolls into your first plant. Put a Stumpy out front to take the hit.',
   leaper: 'It flips over the first plant it meets. Put a cheap Stumpy or Spore Puff out front as bait.',
-  brute: 'Slow it with Frost Ferns, hold it with an Ivy Snare, then finish it with a Boom Gourd or Fire Pepper.',
-  scarecrow: 'The straw hat takes the first hits. Two shooters per row help a lot.',
-  pumpkin: 'Snapjaw can swallow a Pumpkin-head whole, pumpkin and all.',
+  brute: 'Its stomp makes nearby plants dizzy. Hold it far away with an Ivy Snare and finish it with a Boom Gourd.',
+  scarecrow: 'Fire Peppers burn straw twice as hard. If a crow flies out, tap it before it steals your dew!',
+  pumpkin: 'It spits seeds at your plants from a distance. Snapjaw can swallow it whole, pumpkin and all.',
   gardener: 'It heals every zombie near it. Take it out first with a Thorn Rose or a Boom Gourd.',
   mailman: 'Defeat it for a 50-dew bonus drop. Tap the drop quickly!',
-  parka: 'Frost Fern cannot slow it while the hood is up. Use Ivy Snare or Breeze Bloom instead.',
-  skater: 'It races in until something hits it, so every row needs a shooter.'
+  parka: 'Its snowballs freeze a plant for a moment. Spread your shooters out so one frozen plant is not a disaster.',
+  skater: 'It races in until something hits it, so every row needs a shooter.',
+  gnome: 'Gnomes come in threes but are very weak. Popcorn Pods and Sprinkler Blooms clear them in one go.',
+  wheelbarrow: 'It buries the first plant it reaches. Break the barrow early, or let it bury a cheap plant.',
+  beekeeper: 'Its bees stun plants near it while it eats. Knock its veil off and the bees fly away.',
+  boss: 'A boss! It calls in helpers and stomps your plants dizzy. Snares, Snapjaws and bombs all help.'
 };
 function drawNewBugCard(t) {
   const k = G.newBug; if (!k) return;
@@ -483,7 +487,7 @@ const HOWTO = [
       at(130, 350, 0.9, () => { shadow(0, 2, 30); PLANT_ART.snap({ t, mode, p: (st_ - 1.2) / 0.6 }); });
       if (st_ < 1.7) at(lerp(w, 240, Math.min(1, st_ / 1.2)), 350, 0.56, () => { shadow(2, 2, 28); BUG_ART.runner({ walk: t * 12 }); });
     } },
-  { title: 'Know your zombies', text: 'Farmhand: the everyday zombie.\nLid: hides behind a trash-can lid.\nJogger: fast but fragile.\nBarrel: very tough, speeds up when the barrel breaks.\nAcrobat: flips over the first plant.\nBrute: huge, and eats plants fast.',
+  { title: 'Know your zombies', text: 'Farmhand: the everyday zombie.\nLid: hides behind a trash-can lid.\nJogger: fast, and dodges into the next lane once.\nBarrel: when the barrel breaks, it rolls into a plant.\nAcrobat: flips over the first plant.\nBrute: huge, and its stomp makes plants dizzy.',
     draw(w, h, t) {
       miniLawn(w, h, 2);
       ['basic', 'lid', 'runner', 'barrel', 'leaper', 'brute'].forEach((k, i) => {
@@ -492,7 +496,7 @@ const HOWTO = [
         text(BUGS[k].name.replace(' Zombie', ''), x, y + 24, 20, { fill: '#fff8e0', sw: 5 });
       });
     } },
-  { title: 'More zombies', text: 'Scarecrow: straw hat takes the first hits.\nPumpkin-head: a tough pumpkin helmet.\nGardener: heals nearby zombies.\nMailman: drops 50 bonus dew.\nParka: cannot be slowed.\nSkater: fast until it gets hit.',
+  { title: 'More zombies', text: 'Scarecrow: burns easily; a crow steals your dew.\nPumpkin-head: spits seeds at your plants.\nGardener: heals nearby zombies.\nMailman: drops 50 bonus dew.\nParka: throws snowballs that freeze plants.\nSkater: fast until it gets hit.',
     draw(w, h, t) {
       miniLawn(w, h, 2);
       ['scarecrow', 'pumpkin', 'gardener', 'mailman', 'parka', 'skater'].forEach((k, i) => {
@@ -506,15 +510,46 @@ const HOWTO = [
       miniLawn(w, h, 2);
       ['rose', 'snare', 'breeze', 'lobber'].forEach((k, i) => { const x = 110 + (i % 2) * 300, y = 170 + Math.floor(i / 2) * 200; at(x, y, 1, () => { shadow(0, 2, 30); PLANT_ART[k]({ t: t + i, shoot: Math.max(0, 1 - ((t + i * 0.3) % 1.5) * 4) }); }); text(PLANTS[k].name, x, y + 26, 20, { fill: '#fff8e0', sw: 5 }); });
     } },
-  { title: 'Five worlds', text: 'Backyard: where it all starts.\nAutumn Orchard: tap falling apples for 50 dew.\nMoonlit Garden: very little dew at night.\nFrosty Garden: icy lanes make zombies faster.\nSunny Beach: lots of dew, but it dries up fast.\n\nSome levels have rocks or snowmen blocking squares.',
+  { title: 'Zombie tricks', text: 'Gnome: tiny, but always comes in threes.\nWheelbarrow: buries the first plant it reaches, then hurries on.\nBeekeeper: its bees sting nearby plants so they stop attacking.\n\nDizzy plants show spinning stars, and frozen plants sit in an ice block. Both wake up after a few seconds.',
+    draw(w, h, t) {
+      miniLawn(w, h, 2);
+      ['gnome', 'wheelbarrow', 'beekeeper'].forEach((k, i) => {
+        const x = 120 + i * 220, y = 190;
+        at(x, y, 0.62 * zScale(k), () => { shadow(2, 2, 28); BUG_ART[k]({ walk: t * 6 + i, armorFrac: 1 }); });
+        text(BUGS[k].name.replace(' Zombie', ''), x, y + 24, 20, { fill: '#fff8e0', sw: 5 });
+      });
+      at(200, 400, 0.8, () => { shadow(0, 2, 30); PLANT_ART.berry({ t }); });
+      for (let k = 0; k < 3; k++) { const a = t * 4 + k * TAU / 3; star(200 + Math.cos(a) * 18, 400 - 74 + Math.sin(a) * 5, 6, '#ffe14a'); }
+      at(440, 400, 0.8, () => { shadow(0, 2, 30); PLANT_ART.frost({ t }); });
+      rrect(440 - 31, 400 - 78, 62, 80, 10); ctx.fillStyle = 'rgba(180,225,255,.45)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.stroke();
+    } },
+  { title: 'The Compost Giant', text: 'At the end of every world, a Compost Giant joins the final horde. Watch its health bar at the top.\n\nIt calls in helper zombies and stomps nearby plants dizzy. Zappers only hurt it, so stop it before it reaches the greenhouse!\n\nSnapjaws, snares and bombs all help.',
+    draw(w, h, t) {
+      miniLawn(w, h, 2);
+      at(w / 2 + 60, h - 40, 0.62, () => { shadow(0, 2, 60); BUG_ART.boss({ walk: t * 3, armorFrac: 1 }); });
+      rrect(w / 2 - 170, 30, 340, 22, 11); ctx.fillStyle = 'rgba(40,20,10,.75)'; ctx.fill(); st(3);
+      rrect(w / 2 - 166, 34, 332 * (0.55 + Math.sin(t) * 0.1), 14, 7); fs('#e0502e');
+    } },
+  { title: 'Late-game plants', text: 'Moon Mushroom: cheap, makes 15 dew every 15 seconds.\nPopcorn Pod: kernels bounce to 3 zombies.\nBramble Hedge: tough, and pricks anything that bites it.\nSprinkler Bloom: splashes every zombie in a 3x3 area.',
+    draw(w, h, t) {
+      miniLawn(w, h, 2);
+      ['moonshroom', 'popcorn', 'hedge', 'sprinkler'].forEach((k, i) => { const x = 110 + (i % 2) * 300, y = 170 + Math.floor(i / 2) * 200; at(x, y, 1, () => { shadow(0, 2, 30); PLANT_ART[k]({ t: t + i, hpFrac: 1, shoot: Math.max(0, 1 - ((t + i * 0.3) % 1.5) * 4) }); }); text(PLANTS[k].name, x, y + 26, 20, { fill: '#fff8e0', sw: 5 }); });
+    } },
+  { title: 'Stars and the Daily Challenge', text: 'Every level gives up to three stars:\n★ for winning\n★ if no zapper was used\n★ if you lost two plants or fewer\n\nOnce you beat Level 1-3, the Daily Challenge opens: a new level each day, with its own plants and a twist.',
+    draw(w, h, t) {
+      miniLawn(w, h, 3);
+      for (let i = 0; i < 3; i++) { const s = 1 + Math.sin(t * 3 + i) * 0.06; ctx.save(); ctx.translate(w / 2 + (i - 1) * 110, h / 2 - (i === 1 ? 20 : 0)); ctx.scale(s, s); star(0, 0, 44, '#ffd23a', 3); ctx.restore(); }
+      text('Daily Challenge', w / 2, h - 70, 30, { fill: '#ffe14a', sw: 6 });
+    } },
+  { title: 'Six worlds', text: 'Backyard: where it all starts.\nAutumn Orchard: tap falling apples for 50 dew.\nMoonlit Garden: very little dew at night.\nFrosty Garden: icy lanes make zombies faster.\nSunny Beach: lots of dew, but it dries up fast.\nMushroom Grove: always raining, with thunder.\n\nSome levels bring rain (more dew, muddy lanes) or wind (gusts blow zombies toward you).',
     draw(w, h, t) {
       WORLDS.forEach((wd, i) => {
-        const T = THEMES[wd.key], y = i * (h / 5);
-        ctx.fillStyle = T.tile[0]; ctx.fillRect(0, y, w, h / 5 + 1);
-        for (let c = 0; c < 7; c++) { ctx.fillStyle = T.tile[c % 2]; ctx.fillRect(c * 100, y, 100, h / 5 + 1); }
-        ctx.fillStyle = T.sky[0]; ctx.fillRect(0, y, 120, h / 5 + 1);
-        text(wd.name, 200, y + h / 10, 24, { fill: '#fff8e0', sw: 5, align: 'left' });
-        at(560, y + h / 5 - 6, 0.42, () => BUG_ART[['basic', 'scarecrow', 'mailman', 'parka', 'skater'][i]]({ walk: t * 6 + i, armorFrac: 1 }));
+        const n = WORLDS.length, T = THEMES[wd.key], y = i * (h / n);
+        ctx.fillStyle = T.tile[0]; ctx.fillRect(0, y, w, h / n + 1);
+        for (let c = 0; c < 7; c++) { ctx.fillStyle = T.tile[c % 2]; ctx.fillRect(c * 100, y, 100, h / n + 1); }
+        ctx.fillStyle = T.sky[0]; ctx.fillRect(0, y, 120, h / n + 1);
+        text(wd.name, 200, y + h / n / 2, 22, { fill: '#fff8e0', sw: 5, align: 'left' });
+        at(560, y + h / n - 6, 0.36, () => BUG_ART[['basic', 'scarecrow', 'mailman', 'parka', 'skater', 'beekeeper'][i]]({ walk: t * 6 + i, armorFrac: 1 }));
       });
     } },
   { title: 'Zappers and hordes', text: 'Each row has one Zombie Zapper by the greenhouse. If a zombie gets past your plants, the zapper fries every zombie in that row, but only once.\n\nThe bar at the top shows your progress. Flags mark big hordes.',

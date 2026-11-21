@@ -8,9 +8,11 @@ Plant a garden and hold off waves of cartoon zombies before they reach the green
 
 ## Features
 
-- **14 plants**, from Dew Lilies and Berry Blasters to Thorn Roses, Ivy Snares and Boom Gourds
-- **12 kinds of cartoon garden zombies**, each with something growing on its head, from the everyday Farmhand to the healing Gardener and the huge Brute
-- **5 worlds, 50 levels:** Backyard, Autumn Orchard, Moonlit Garden, Frosty Garden and Sunny Beach, each with its own scenery, music and twist
+- **18 plants**, from Dew Lilies and Berry Blasters to Popcorn Pods, Sprinkler Blooms and Boom Gourds
+- **15 kinds of cartoon garden zombies** with their own tricks: Joggers change lanes, Brutes stomp your plants dizzy, Parkas freeze them with snowballs, Wheelbarrows bury them, and a crow steals your dew
+- **A boss**, the Compost Giant, at the end of every world
+- **6 worlds, 60 levels:** Backyard, Autumn Orchard, Moonlit Garden, Frosty Garden, Sunny Beach and Mushroom Grove, each with its own scenery, music and twist, plus rain, thunder and wind
+- **Stars** on every level and a new **Daily Challenge** each day
 - **Endless Horde** mode for high scores
 - Guided tutorial, How to Play book, Watch Demo mode and Field Guide
 - **Save codes and save files** to move your progress between devices
@@ -25,6 +27,8 @@ Plant a garden and hold off waves of cartoon zombies before they reach the green
 | ![Frosty Garden](media/screenshots/05-frosty-garden.png) | ![Sunny Beach](media/screenshots/06-sunny-beach.png) |
 | ![World map](media/screenshots/07-world-map.png) | ![Seed picker](media/screenshots/08-seed-picker.png) |
 | ![Field Guide](media/screenshots/09-field-guide.png) | ![Tutorial](media/screenshots/10-tutorial.png) |
+| ![Mushroom Grove and the Compost Giant](media/screenshots/12-mushroom-grove.png) | ![Results with stars](media/screenshots/13-results.png) |
+| ![Mushroom Grove map](media/screenshots/14-grove-map.png) | ![Daily Challenge](media/screenshots/15-daily-challenge.png) |
 
 ## Videos
 

@@ -24,6 +24,7 @@ const THEMES = {
   autumn: { sky: ['#7fbde8', '#ffe2b8'], trees: ['#d0782a', '#b85a1a', '#c8902a', '#a04818'], wall: ['#a89880', '#c0b098'], tile: ['#b2c860', '#a0b650'], meadow: '#a0a848', tuft: ['#b8902a', '#a07a20'], path: ['#c8a070', '#dcbc8c'], glass: ['#d8ecf0', '#e8f4f6'], pots: ['#c8782a', '#d89a3a'], grass: ['rgba(90,70,10,.25)', 'rgba(255,240,170,.22)'], flowers: ['#e8783a', '#c84a2a', '#f0b040', '#b85a1a'], leaves: true, clouds: 0.7, obstacle: 'log', apples: true },
   night: { sky: ['#0b1430', '#2c3c6c'], trees: ['#1b2f2a', '#16281f', '#14241c', '#102018'], wall: ['#4a4a5a', '#5a5a6c'], tile: ['#3f6c4a', '#365f41'], meadow: '#2e5236', tuft: ['#24452c', '#1e3c26'], path: ['#565068', '#686078'], glass: ['#34506a', '#44607a'], pots: ['#2e5a36', '#386a40'], grass: ['rgba(0,20,10,.3)', 'rgba(180,220,255,.12)'], flowers: ['#c8d8ff', '#9ab0ff', '#ffffff'], clouds: 0.12, stars: true, moon: true, tint: 'rgba(10,20,70,.2)', obstacle: 'shroomstump' },
   winter: { sky: ['#9cc0e4', '#eef4fa'], trees: ['#e6eef8', '#cfdcec', '#dbe6f2', '#c4d4e6'], wall: ['#b8c0cc', '#d4dae2'], tile: ['#f2f7fc', '#e0eaf4'], meadow: '#d4e2ee', tuft: ['#b4c6d6', '#a2b6c8'], path: ['#c4ccd6', '#dde4ec'], glass: ['#dff2fa', '#f0f8fc'], pots: ['#5a9a6a', '#6aaa7a'], grass: ['rgba(120,150,190,.25)', 'rgba(255,255,255,.5)'], flowers: ['#ffffff', '#d6ecff'], clouds: 0.9, snow: true, obstacle: 'snowman' },
+  grove: { sky: ['#2c2350', '#7a5a9a'], skyMid: '#5a4580', trees: ['#3a4a3a', '#2e3e30', '#2a3a2c', '#243226'], wall: ['#5a5a50', '#6a6a5e'], tile: ['#5c9450', '#528748'], meadow: '#477a40', tuft: ['#3a6a34', '#30602c'], path: ['#6a5a48', '#7e6c58'], glass: ['#6a7a8a', '#7a8a9a'], pots: ['#5a4a8a', '#6a5aa0'], grass: ['rgba(20,50,20,.3)', 'rgba(200,240,190,.14)'], flowers: ['#d8a8ff', '#a8d8ff', '#ffd8f0'], clouds: 0.3, tint: 'rgba(40,20,70,.14)', obstacle: 'toadstool', shrooms: true },
   beach: { sky: ['#3ab0f0', '#c8ecff'], trees: [], wall: ['#c8a878', '#dcc090'], tile: ['#f4de9e', '#e8cf8a'], meadow: '#e2c47e', tuft: ['#7ab848', '#5aa03a'], path: ['#d8c08a', '#eadaa8'], glass: ['#d4f4fc', '#e6faff'], pots: ['#4faa45', '#62c04f'], grass: ['rgba(150,110,40,.2)', 'rgba(255,255,230,.35)'], flowers: ['#ff9a8a', '#ffffff', '#f4b0c8', '#ffd08a'], clouds: 0.8, sea: true, obstacle: 'sandcastle' }
 };
 function drawObstacle(kind, x, y, rnd) {
@@ -48,6 +49,12 @@ function drawObstacle(kind, x, y, rnd) {
     P(); ctx.moveTo(x - 2, y - 50); ctx.lineTo(x - 16, y - 47); ctx.lineTo(x - 2, y - 46); ctx.closePath(); fst('#f08a2a', 1.6);
     rrect(x - 14, y - 72, 28, 6, 2); fst('#3a3a4a', 2); rrect(x - 9, y - 88, 18, 17, 2); fst('#3a3a4a', 2);
     rrect(x - 16, y - 40, 32, 6, 3); fst('#e8453a', 2);
+  } else if (kind === 'toadstool') {
+    rrect(x - 11, y - 40, 22, 40, 8); fs(lg(0, y - 40, 0, y, ['#f4eee0', '#d8ccb4'])); st(3);
+    P(); ctx.moveTo(x - 38, y - 36); ctx.quadraticCurveTo(x - 36, y - 74, x, y - 76); ctx.quadraticCurveTo(x + 36, y - 74, x + 38, y - 36); ctx.quadraticCurveTo(x, y - 46, x - 38, y - 36); ctx.closePath();
+    fs(lg(0, y - 76, 0, y - 36, ['#c070e8', '#8a40c0'])); st(3.2);
+    for (const [dx, dy, r] of [[-20, -52, 5], [2, -64, 6], [20, -50, 4.5], [-6, -48, 3.5]]) { circ(x + dx, y + dy, r); fs('#fff4e0'); }
+    for (const dx of [-26, 22]) { P(); ctx.arc(x + dx, y - 4, 7, Math.PI, 0); ctx.closePath(); fs('#a8e0ff'); st(2); }
   } else if (kind === 'sandcastle') {
     P(); ctx.moveTo(x - 36, y); ctx.lineTo(x - 32, y - 30); ctx.lineTo(x + 32, y - 30); ctx.lineTo(x + 36, y); ctx.closePath(); fs(lg(0, y - 30, 0, y, ['#f2d690', '#d8b468'])); st(3);
     for (const dx of [-24, 0, 24]) { rrect(x + dx - 9, y - 50, 18, 22, 2); fs('#ecd088'); st(2.6); for (let k = 0; k < 3; k++) { rrect(x + dx - 9 + k * 7, y - 55, 4, 6, 1); fs('#ecd088'); st(1.6); } }
@@ -86,6 +93,13 @@ function renderLawn(opts) {
   } else {
     treeLine(rnd, 128, T.trees[0], T.trees[1]);
     treeLine(rnd, 142, T.trees[2], T.trees[3]);
+    if (T.shrooms) for (let i = 0; i < 9; i++) {
+      const mx = 40 + i * 150 + rnd() * 60, my = 138, mh = 40 + rnd() * 40, mr = 24 + rnd() * 22, c0 = ['#b070e0', '#e070a0', '#70b0e0'][i % 3];
+      P(); ctx.moveTo(mx - 6, my); ctx.quadraticCurveTo(mx - 4, my - mh * 0.6, mx, my - mh); ctx.lineTo(mx + 6, my - mh); ctx.quadraticCurveTo(mx + 4, my - mh * 0.5, mx + 7, my); ctx.closePath(); ctx.fillStyle = '#d8d0c0'; ctx.fill();
+      circ(mx, my - mh, mr * 1.5); ctx.fillStyle = 'rgba(200,160,255,.12)'; ctx.fill();
+      P(); ctx.ellipse(mx, my - mh, mr, mr * 0.6, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = c0; ctx.fill();
+      for (let k = 0; k < 3; k++) { circ(mx - mr * 0.5 + k * mr * 0.5, my - mh - mr * 0.3, 3); ctx.fillStyle = 'rgba(255,255,230,.85)'; ctx.fill(); }
+    }
     if (opts.theme === 'autumn') for (let i = 0; i < 26; i++) { circ(rnd() * W, 96 + rnd() * 40, 4); ctx.fillStyle = '#d8302a'; ctx.fill(); }
     if (T.snow) for (let x = -20; x < W; x += 40) { ell(x + rnd() * 30, 104 + rnd() * 20, 26, 9); ctx.fillStyle = '#ffffff'; ctx.fill(); }
   }
@@ -389,7 +403,8 @@ const BUG_BOXES = {
   basic: { x: -84, y: -152, w: 128, h: 164 }, lid: { x: -88, y: -150, w: 132, h: 162 }, runner: { x: -88, y: -146, w: 136, h: 158 },
   barrel: { x: -84, y: -150, w: 132, h: 162 }, leaper: { x: -86, y: -162, w: 130, h: 174 }, brute: { x: -116, y: -198, w: 172, h: 210 },
   scarecrow: { x: -90, y: -164, w: 140, h: 176 }, pumpkin: { x: -86, y: -152, w: 130, h: 164 }, gardener: { x: -98, y: -152, w: 142, h: 164 },
-  mailman: { x: -86, y: -146, w: 132, h: 158 }, parka: { x: -90, y: -150, w: 138, h: 162 }, skater: { x: -88, y: -158, w: 134, h: 170 }
+  mailman: { x: -86, y: -146, w: 132, h: 158 }, parka: { x: -90, y: -150, w: 138, h: 162 }, skater: { x: -88, y: -158, w: 134, h: 170 },
+  gnome: { x: -56, y: -128, w: 88, h: 140 }, wheelbarrow: { x: -126, y: -152, w: 172, h: 164 }, beekeeper: { x: -96, y: -156, w: 142, h: 168 }, boss: { x: -170, y: -306, w: 260, h: 318 }
 };
 
 

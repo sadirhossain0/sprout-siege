@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.2.0: Zombie Tricks & the Mushroom Grove
+- **Zombies have their own tricks now:** Joggers change lanes, broken barrels roll into your plants, Brutes stomp plants dizzy, Pumpkin-heads spit seeds, Parkas freeze plants with snowballs, and a crow flies out of the Scarecrow's hat to steal dew.
+- **3 new zombies:** Gnome (comes in threes), Wheelbarrow (buries a plant) and Beekeeper (bees stun plants).
+- **Boss:** the Compost Giant ends every world, with its own health bar.
+- **4 new plants:** Moon Mushroom, Popcorn Pod, Bramble Hedge and Sprinkler Bloom (18 in all).
+- **World 6: Mushroom Grove**, plus rain, thunder and wind on some levels (6 worlds, 60 levels).
+- **Stars** (up to 3 per level), a results screen and a **Daily Challenge**.
+- Save codes and files now carry stars. Videos are no longer attached to releases; they stay on the project page.
+
 ## 2.1.0: Save Codes & Backups
 - **Save codes:** copy a short code on one device and enter it on another to bring your progress along. No account needed.
 - **Save files:** export your progress as a backup file and import it on any device. On Android the file goes to your Downloads folder.

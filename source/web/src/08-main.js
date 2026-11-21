@@ -286,7 +286,7 @@ function drawLoading(t) {
 let titleBg = null;
 const TitleSim = { basic: null, wait: 2, cd: 1, projs: [], t: 0 };
 const TITLE_PLANKS = {
-  adv: [820, 150, 390, 84], endless: [840, 268, 350, 66], howto: [845, 348, 340, 66], guide: [850, 428, 330, 62], opts: [860, 504, 310, 58]
+  adv: [820, 136, 390, 84], endless: [840, 250, 350, 62], daily: [842, 322, 346, 62], howto: [845, 394, 340, 60], guide: [850, 464, 330, 58], opts: [860, 532, 310, 56]
 };
 const plankCenter = k => ({ x: TITLE_PLANKS[k][0] + TITLE_PLANKS[k][2] / 2, y: TITLE_PLANKS[k][1] + TITLE_PLANKS[k][3] / 2 });
 function renderTitleBg() {
@@ -367,15 +367,20 @@ function drawTitle(t, dt) {
   const P_ = TITLE_PLANKS;
   const swing = (i) => Math.sin(t * 1.6 + i * 1.3) * 0.012 + (1 - easeOutBack(clamp((it - 0.3 - i * 0.1) / 0.5, 0, 1))) * 0.9;
   plankBtn('adv', ...P_.adv, 'Adventure', () => { Snd.play('select'); go('map'); }, { size: 40, color: '#5aa83a', rot: swing(0) });
-  if (it > 0.8) text(d.done.length >= LEVELS.length ? 'All levels cleared!' : `Next: ${LEVELS[nextLvl - 1].name}`, 1015, 246, 17, { fill: '#fff8e0', sw: 4, body: true, weight: '700' });
+  if (App.lockMsg > 0) { App.lockMsg -= dt; text(App.lockText || 'Beat Level 1-10 to unlock!', 1015, 234, 19, { fill: '#ffe14a', sw: 5 }); }
+  else if (it > 0.8) text(d.done.length >= LEVELS.length ? 'All levels cleared!' : `Next: ${LEVELS[nextLvl - 1].name}`, 1015, 234, 17, { fill: '#fff8e0', sw: 4, body: true, weight: '700' });
   plankBtn('endless', ...P_.endless, 'Endless Horde', () => {
-    if (!endlessOpen) { Snd.play('deny'); App.lockMsg = 2.5; return; }
+    if (!endlessOpen) { Snd.play('deny'); App.lockMsg = 2.5; App.lockText = 'Beat Level 1-10 to unlock!'; return; }
     Snd.play('select'); go('play', () => startLevel(0, true));
   }, { size: 30, disabled: !endlessOpen, icon: endlessOpen ? null : (x, y) => iconLock(x - 6, y, 0.8), rot: swing(1) });
+  const dailyOpen = d.done.includes(2), dailyDone = d.daily && d.daily.day === dailyKey();
+  plankBtn('daily', ...P_.daily, dailyDone ? 'Daily  ' + '★'.repeat(d.daily.stars) : 'Daily Challenge', () => {
+    if (!dailyOpen) { Snd.play('deny'); App.lockMsg = 2.5; App.lockText = 'Beat Level 1-3 to unlock!'; return; }
+    Snd.play('select'); go('play', startDaily);
+  }, { size: 28, color: '#d8902a', disabled: !dailyOpen, icon: dailyOpen ? null : (x, y) => iconLock(x - 6, y, 0.8), rot: swing(1.5) });
   plankBtn('howto', ...P_.howto, 'How to Play', () => { Snd.play('select'); go('howto'); }, { size: 30, color: '#3f9fb0', rot: swing(2) });
   plankBtn('guide', ...P_.guide, 'Field Guide', () => { Snd.play('select'); go('guide'); }, { size: 28, rot: swing(3) });
   plankBtn('opts', ...P_.opts, 'Options', () => { Snd.play('click'); UI.overlay = 'options'; }, { size: 26, color: '#9a7350', rot: swing(4) });
-  if (App.lockMsg > 0) { App.lockMsg -= dt; text('Beat Level 1-10 to unlock!', 1015, 350, 20, { fill: '#ffe14a', sw: 5 }); }
   roundBtn('t_sound', 52, 52, 28, () => iconSound(Save.data.sfx || Save.data.music), toggleAllSound);
 }
 function burst2(x, y) { /* small berry splat on the title screen */
@@ -417,9 +422,9 @@ function drawMap(t) {
   const theme = WORLDS[w].key;
   ctx.drawImage(mapBgFor(theme), 0, 0, W, H);
   WORLDS.forEach((wd, i) => {
-    const open = worldUnlocked(i), x = 26 + i * 246;
-    plankBtn('wt' + i, x, 14, 230, 58, wd.name, () => { if (!open) { Snd.play('deny'); App.lockMsg = 2; return; } App.mapWorld = i; Snd.play('click'); },
-      { size: 21, color: i === w ? wd.color : '#9a7350', disabled: !open, icon: open ? null : (ix, iy) => iconLock(ix - 6, iy, 0.7) });
+    const open = worldUnlocked(i), x = 22 + i * 206;
+    plankBtn('wt' + i, x, 14, 198, 58, wd.name, () => { if (!open) { Snd.play('deny'); App.lockMsg = 2; return; } App.mapWorld = i; Snd.play('click'); },
+      { size: 19, color: i === w ? wd.color : '#9a7350', disabled: !open, icon: open ? null : (ix, iy) => iconLock(ix - 6, iy, 0.62) });
   });
   if (App.lockMsg > 0) { App.lockMsg -= 1 / 60; text('Finish the previous world to open this one!', W / 2, 96, 22, { fill: '#ffe14a', sw: 5 }); }
   MAP_NODES.forEach(([x, y], i) => {
@@ -437,7 +442,7 @@ function drawMap(t) {
     if (current) { ell(0, 0, 52, 46); st(4, '#fff36b'); }
     if (unlocked) text(`${w + 1}-${i + 1}`, 0, 2, 32, { fill: '#5a3a1a', stroke: '#fff8e0', sw: 6 });
     else iconLock(0, -2, 1.3);
-    if (done) { circ(30, -26, 15); fst('#5cc244', 3); P(); ctx.moveTo(23, -26); ctx.lineTo(28, -20); ctx.lineTo(37, -32); st(4, '#ffffff'); }
+    if (done) { const n = (d.stars && d.stars[idx]) || 1; for (let k = 0; k < 3; k++) star(-26 + k * 26, k === 1 ? -46 : -40, 12, k < n ? '#ffd23a' : '#a89a80', 2.4); }
     ctx.restore();
     if (b.hover || current) {
       const rw = rewardOf(idx);
@@ -445,6 +450,9 @@ function drawMap(t) {
       if (current && rw) text(`Win: ${PLANTS[rw].name}`, x, y + 86, 17, { fill: '#ffe14a', sw: 4, body: true, weight: '700' });
     }
   });
+  // stars collected in this world
+  let got = 0; for (let i = 0; i < 10; i++) got += (d.stars && d.stars[w * 10 + i]) || (d.done.includes(w * 10 + i) ? 1 : 0);
+  star(1180, 664, 18, '#ffd23a', 3); text(`${got}/30`, 1230, 666, 26, { fill: '#fff8e0', sw: 5 });
   roundBtn('back', 60, 660, 34, iconBack, () => { Snd.play('click'); go('title'); });
 }
 
@@ -455,6 +463,8 @@ function initSeeds(idx) {
   const chosen = last.length ? last.slice(0, 10) : avail.slice(0, 10);
   App.seeds = { idx, avail, chosen, info: chosen[0] || avail[0] };
 }
+// relative drawing size so big and small zombies fit the same card
+function zScale(k) { return { brute: 0.76, boss: 0.4, gnome: 1.25, wheelbarrow: 0.85 }[k] || 1; }
 function levelZombies(L) { return BUG_ORDER.filter(k => L.pool && L.pool[k] > 0); }
 function drawSeeds(t) {
   const S = App.seeds; if (!S) return;
@@ -499,13 +509,15 @@ function drawSeeds(t) {
   // zombies coming
   rrect(810, 92, 420, 532, 14); fs('#fffaf0'); st(3);
   text('Zombies in this level', 1020, 122, 26, { fill: '#a8503a', stroke: false });
-  levelZombies(L).forEach((k, i) => {
-    const x = 866 + (i % 4) * 102, y = 236 + Math.floor(i / 4) * 128;
-    ctx.save(); rrect(x - 46, y - 92, 92, 104, 10); ctx.clip(); fs('#e9f1dc');
-    at(x + 4, y + 8, k === 'brute' ? 0.38 : 0.5, () => BUG_ART[k]({ walk: t * 5 + i, armorFrac: 1 }));
-    ctx.restore(); rrect(x - 46, y - 92, 92, 104, 10); st(2);
+  const zs = levelZombies(L).concat(L.boss ? ['boss'] : []);
+  const cols = zs.length > 12 ? 5 : 4, cw = cols === 5 ? 80 : 102, chh = cols === 5 ? 122 : 128, bw = cw - 8;
+  zs.forEach((k, i) => {
+    const x = 1020 - (cols - 1) * cw / 2 + (i % cols) * cw, y = (cols === 5 ? 226 : 236) + Math.floor(i / cols) * chh;
+    ctx.save(); rrect(x - bw / 2, y - 92, bw, 104, 10); ctx.clip(); fs(k === 'boss' ? '#f4d8c8' : '#e9f1dc');
+    at(x + 4, y + 8, (cols === 5 ? 0.44 : 0.5) * zScale(k), () => BUG_ART[k]({ walk: t * 5 + i, armorFrac: 1 }));
+    ctx.restore(); rrect(x - bw / 2, y - 92, bw, 104, 10); st(2);
     const nm = BUGS[k].name.replace(' Zombie', '');
-    text(nm, x, y + 26, nm.length > 9 ? 13 : 15, { fill: '#3b2a14', stroke: false });
+    text(nm, x, y + 24, nm.length > 9 ? (cols === 5 ? 11 : 13) : (cols === 5 ? 13 : 15), { fill: '#3b2a14', stroke: false });
   });
   plankBtn('seed_back', 50, 636, 200, 56, 'Back', () => { Snd.play('click'); go('map'); }, { size: 26 });
   plankBtn('seed_go', 1010, 636, 220, 56, 'Start!', () => {
@@ -532,20 +544,20 @@ function drawGuide(t) {
   const list = App.guideTab === 'plants' ? PLANT_ORDER : BUG_ORDER;
   const known = k => App.guideTab === 'plants' ? UNLOCK_AT[k] <= maxIdx || d.done.includes(UNLOCK_AT[k] - 1) : BUG_INTRO[k] <= maxIdx;
   list.forEach((k, i) => {
-    const x = 70 + (i % 5) * 112, y = 166 + Math.floor(i / 5) * 162;
+    const x = 66 + (i % 6) * 95, y = 166 + Math.floor(i / 6) * 162;
     const kn = known(k), sel = App.guideSel === k;
-    const b = UI.btn('g' + k, x, y, 104, 152, () => { if (kn) { App.guideSel = k; Snd.play('click'); } else Snd.play('deny'); });
-    rrect(x, y, 104, 152, 12); fs(sel ? '#fff3b0' : b.hover ? '#fffaf0' : '#f6ead0'); st(3, sel ? '#e8a21c' : OUT);
-    ctx.save(); rrect(x + 4, y + 4, 96, 120, 10); ctx.clip();
-    ctx.translate(x + 52, y + 116);
-    const sc = App.guideTab === 'plants' ? (['stump', 'pepper', 'gourd'].includes(k) ? 0.78 : 0.86) : (k === 'brute' ? 0.5 : 0.66);
+    const b = UI.btn('g' + k, x, y, 88, 152, () => { if (kn) { App.guideSel = k; Snd.play('click'); } else Snd.play('deny'); });
+    rrect(x, y, 88, 152, 12); fs(sel ? '#fff3b0' : b.hover ? '#fffaf0' : '#f6ead0'); st(3, sel ? '#e8a21c' : OUT);
+    ctx.save(); rrect(x + 4, y + 4, 80, 120, 10); ctx.clip();
+    ctx.translate(x + 44, y + 116);
+    const sc = App.guideTab === 'plants' ? (['stump', 'pepper', 'gourd', 'hedge'].includes(k) ? 0.7 : 0.78) : 0.6 * zScale(k);
     ctx.scale(sc, sc);
     if (!kn) TINT = 3;
     if (App.guideTab === 'plants') PLANT_ART[k]({ t: t + i, armed: true, hpFrac: 1 });
     else BUG_ART[k]({ walk: t * 4 + i, eat: 0, armorFrac: 1 });
     TINT = 0; ctx.restore();
     const nm = kn ? (App.guideTab === 'plants' ? PLANTS[k] : BUGS[k]).name.replace(' Zombie', '') : '???';
-    text(nm, x + 52, y + 138, nm.length > 12 ? 13 : 15, { fill: '#3b2a14', stroke: false });
+    text(nm, x + 44, y + 138, nm.length > 12 ? 11 : nm.length > 9 ? 13 : 15, { fill: '#3b2a14', stroke: false });
   });
   const k = App.guideSel;
   const def = App.guideTab === 'plants' ? PLANTS[k] : BUGS[k];
@@ -553,7 +565,7 @@ function drawGuide(t) {
     rrect(650, 100, 560, 560, 16); fs('#fffaf0'); st(3);
     ctx.save(); rrect(670, 120, 520, 270, 12); ctx.clip();
     fs(lg(0, 120, 0, 390, App.guideTab === 'plants' ? ['#bfe8ff', '#8fd6a0'] : ['#ffe0b8', '#c9e89a']));
-    ctx.translate(930, 372); const big = App.guideTab === 'plants' ? 2 : (k === 'brute' ? 1.1 : 1.45);
+    ctx.translate(930, 372); const big = App.guideTab === 'plants' ? 2 : 1.45 * zScale(k);
     shadow(0, 2, 34); ctx.scale(big, big);
     if (App.guideTab === 'plants') PLANT_ART[k]({ t, armed: true, hpFrac: 1, glow: (Math.sin(t * 2) + 1) / 2 });
     else BUG_ART[k]({ walk: t * 5, eat: (t * 2) % 1, armorFrac: 1 });
@@ -591,10 +603,10 @@ function drawOverlay(t) {
     woodPanel(400, 60, 480, 600);
     text('Paused', W / 2, 120, 54, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
     plankBtn('resume', 470, 168, 340, 70, 'Resume', () => { UI.overlay = null; Snd.play('click'); }, { size: 34, color: '#5aa83a' });
-    plankBtn('restart', 470, 252, 340, 62, 'Restart Level', () => { Snd.play('click'); const i = G.idx, e = G.endless, dm = G.demo, pl = G.cards.map(c => c.type); UI.overlay = null; go('play', () => (dm ? startDemo() : startLevel(i, e, { plants: pl }))); }, { size: 28 });
+    plankBtn('restart', 470, 252, 340, 62, 'Restart Level', () => { Snd.play('click'); const i = G.idx, e = G.endless, dm = G.demo, pl = G.cards.map(c => c.type); UI.overlay = null; go('play', () => (dm ? startDemo() : i === DAILY_IDX ? startDaily() : startLevel(i, e, { plants: pl }))); }, { size: 28 });
     plankBtn('phow', 470, 328, 340, 62, 'How to Play', () => { Snd.play('click'); UI.overlay = 'howto'; App.howPage = 0; App.howT = App.t; }, { size: 28, color: '#3f9fb0' });
     plankBtn('popts', 470, 404, 340, 62, 'Options', () => { Snd.play('click'); UI.overlay = 'options'; }, { size: 28, color: '#9a7350' });
-    plankBtn('quit', 470, 480, 340, 62, G && (G.endless || G.demo) ? 'Main Menu' : 'Level Map', () => { Snd.play('click'); UI.overlay = null; Auto.stop(); const e = G.endless || G.demo; go(e ? 'title' : 'map'); }, { size: 28, color: '#a8503a' });
+    plankBtn('quit', 470, 480, 340, 62, G && (G.endless || G.demo || G.idx === DAILY_IDX) ? 'Main Menu' : 'Level Map', () => { Snd.play('click'); UI.overlay = null; Auto.stop(); const e = G.endless || G.demo || G.idx === DAILY_IDX; go(e ? 'title' : 'map'); }, { size: 28, color: '#a8503a' });
     text('Esc / P to resume', W / 2, 590, 18, { fill: '#7a5a3a', stroke: false, body: true, weight: '600' });
   } else if (o === 'howto') {
     ctx.restore(); ctx.save();
@@ -612,19 +624,30 @@ function drawOverlay(t) {
       Save.reset(); UI.confirm = false; Snd.play('click');
     }, { size: 24, color: UI.confirm ? '#c0392b' : '#9a7350' });
     plankBtn('o_done', 470, 540, 340, 60, 'Done', () => { UI.confirm = false; UI.overlay = App.scene === 'play' ? 'pause' : null; Snd.play('click'); }, { size: 32, color: '#5aa83a' });
+  } else if (o === 'win' && G.idx === DAILY_IDX) {
+    woodPanel(330, 60, 620, 600);
+    text('Daily Challenge Complete!', W / 2, 124, 44, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
+    drawResultStars(W / 2, 210, t);
+    text(G.L.sub, W / 2, 290, 30, { fill: '#d8902a', stroke: '#fff3d0', sw: 6 });
+    const dd = d.daily || {};
+    wrapText(`Come back tomorrow for a brand new challenge! Daily streak: ${dd.streak || 1} day${(dd.streak || 1) > 1 ? 's' : ''}.`, 420, 330, 440, 22, 30, { fill: '#3b2a14', weight: '600' });
+    drawResultStats(470);
+    plankBtn('w_dmenu', 380, 572, 290, 66, 'Main Menu', () => { Snd.play('select'); UI.overlay = null; go('title'); }, { size: 30, color: '#5aa83a' });
+    plankBtn('w_dagain', 690, 572, 210, 66, 'Replay', () => { Snd.play('click'); UI.overlay = null; go('play', startDaily); }, { size: 30 });
   } else if (o === 'win') {
     const idx = G.idx, rw = rewardOf(idx);
-    woodPanel(330, 60, 620, 600);
+    woodPanel(330, 50, 620, 620);
     if (rw) {
-      text('New Plant!', W / 2, 120, 56, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
-      ctx.save(); rrect(440, 160, 400, 230, 16); ctx.clip(); fs(lg(0, 160, 0, 390, ['#bfe8ff', '#8fd6a0']));
-      ctx.save(); ctx.translate(W / 2, 270); ctx.rotate(t * 0.4);
+      text('New Plant!', W / 2, 102, 52, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
+      drawResultStars(W / 2, 166, t, 0.8);
+      ctx.save(); rrect(440, 206, 400, 196, 16); ctx.clip(); fs(lg(0, 206, 0, 402, ['#bfe8ff', '#8fd6a0']));
+      ctx.save(); ctx.translate(W / 2, 300); ctx.rotate(t * 0.4);
       for (let i = 0; i < 10; i++) { ctx.rotate(TAU / 10); P(); ctx.moveTo(0, 0); ctx.lineTo(-24, -260); ctx.lineTo(24, -260); ctx.closePath(); ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fill(); }
       ctx.restore();
-      ctx.translate(W / 2, 372); shadow(0, 2, 40); ctx.scale(2, 2); PLANT_ART[rw]({ t, armed: true, hpFrac: 1, glow: (Math.sin(t * 2) + 1) / 2 }); ctx.restore();
-      rrect(440, 160, 400, 230, 16); st(3);
-      text(PLANTS[rw].name, W / 2, 422, 40, { fill: '#2f7a2c', stroke: '#fff3d0', sw: 6 });
-      wrapText(PLANTS[rw].desc, 420, 450, 440, 21, 28, { fill: '#3b2a14', weight: '500' });
+      ctx.translate(W / 2, 388); shadow(0, 2, 40); ctx.scale(1.7, 1.7); PLANT_ART[rw]({ t, armed: true, hpFrac: 1, glow: (Math.sin(t * 2) + 1) / 2 }); ctx.restore();
+      rrect(440, 206, 400, 196, 16); st(3);
+      text(PLANTS[rw].name, W / 2, 432, 36, { fill: '#2f7a2c', stroke: '#fff3d0', sw: 6 });
+      wrapText(PLANTS[rw].desc, 420, 456, 440, 20, 26, { fill: '#3b2a14', weight: '500' });
     } else if (idx === LEVELS.length - 1) {
       text('You saved the garden!', W / 2, 130, 48, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
       ctx.save(); ctx.translate(W / 2, 330); ctx.scale(1.4, 1.4);
@@ -633,16 +656,18 @@ function drawOverlay(t) {
       wrapText('Every last zombie has fled the meadow. The greenhouse is safe! Endless Horde is open if you want to keep going.', 420, 420, 440, 22, 30, { fill: '#3b2a14', weight: '500' });
     } else {
       const worldDone = idx % 10 === 9;
-      text(worldDone ? 'World Complete!' : 'Level Complete!', W / 2, 130, 52, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
-      ctx.save(); ctx.translate(W / 2, 320); circ(0, -30, 70); fs(rg(-14, -44, 4, 0, -30, 74, ['#fff6b0', '#ffd23a', '#d08a10'])); st(4); drawTrowel(0, -24, 1.7, -0.5); ctx.restore();
+      text(worldDone ? 'World Complete!' : 'Level Complete!', W / 2, 116, 52, { fill: '#5a3a1a', stroke: '#fff3d0', sw: 7 });
+      drawResultStars(W / 2, 200, t);
+      ctx.save(); ctx.translate(W / 2, 360); circ(0, -30, 62); fs(rg(-14, -44, 4, 0, -30, 66, ['#fff6b0', '#ffd23a', '#d08a10'])); st(4); drawTrowel(0, -24, 1.5, -0.5); ctx.restore();
       const nextW = WORLDS[Math.floor(idx / 10) + 1];
       const msg = worldDone && nextW ? `A new world is open: ${nextW.name}!` + (idx === 9 ? ' Endless Horde is unlocked too.' : '') : 'Great job! On to the next level.';
-      wrapText(msg, 420, 420, 440, 24, 32, { fill: '#3b2a14', weight: '600' });
+      wrapText(msg, 420, 430, 440, 24, 32, { fill: '#3b2a14', weight: '600' });
     }
+    drawResultStats(rw ? 546 : 520);
     const hasNext = idx < LEVELS.length - 1;
-    if (hasNext) plankBtn('w_next', 380, 560, 290, 72, 'Next Level', () => { Snd.play('select'); UI.overlay = null; App.mapWorld = Math.floor((idx + 1) / 10); chooseLevel(idx + 1); }, { size: 32, color: '#5aa83a' });
-    else plankBtn('w_end', 380, 560, 290, 72, 'Endless', () => { Snd.play('select'); UI.overlay = null; go('play', () => startLevel(0, true)); }, { size: 32, color: '#5aa83a' });
-    plankBtn('w_map', 690, 560, 210, 72, 'Map', () => { Snd.play('click'); UI.overlay = null; go('map'); }, { size: 32 });
+    if (hasNext) plankBtn('w_next', 380, 580, 290, 70, 'Next Level', () => { Snd.play('select'); UI.overlay = null; App.mapWorld = Math.floor((idx + 1) / 10); chooseLevel(idx + 1); }, { size: 32, color: '#5aa83a' });
+    else plankBtn('w_end', 380, 580, 290, 70, 'Endless', () => { Snd.play('select'); UI.overlay = null; go('play', () => startLevel(0, true)); }, { size: 32, color: '#5aa83a' });
+    plankBtn('w_map', 690, 580, 210, 70, 'Map', () => { Snd.play('click'); UI.overlay = null; go('map'); }, { size: 32 });
   } else if (o === 'lose') {
     woodPanel(370, 110, 540, 480);
     text('Oh no!', W / 2, 172, 58, { fill: '#a8503a', stroke: '#fff3d0', sw: 7 });
@@ -651,8 +676,8 @@ function drawOverlay(t) {
       text(`You survived ${G.newBest || 0} waves`, W / 2, 380, 32, { fill: '#3b2a14', stroke: false });
       text(`Best: ${d.endlessBest}`, W / 2, 418, 24, { fill: '#2f7a2c', stroke: false });
     } else wrapText('The zombies got into the greenhouse. Try putting a shooter in every row and more Dew Lilies early on!', 420, 356, 440, 22, 30, { fill: '#3b2a14', weight: '600', align: 'left' });
-    plankBtn('l_retry', 420, 470, 250, 72, 'Try Again', () => { Snd.play('select'); UI.overlay = null; const i = G.idx, e = G.endless, pl = G.cards.map(c => c.type); go('play', () => startLevel(i, e, { plants: pl })); }, { size: 30, color: '#5aa83a' });
-    plankBtn('l_map', 690, 470, 180, 72, G.endless ? 'Menu' : 'Map', () => { Snd.play('click'); UI.overlay = null; go(G.endless ? 'title' : 'map'); }, { size: 30 });
+    plankBtn('l_retry', 420, 470, 250, 72, 'Try Again', () => { Snd.play('select'); UI.overlay = null; const i = G.idx, e = G.endless, pl = G.cards.map(c => c.type); go('play', () => (i === DAILY_IDX ? startDaily() : startLevel(i, e, { plants: pl }))); }, { size: 30, color: '#5aa83a' });
+    plankBtn('l_map', 690, 470, 180, 72, G.endless || G.idx === DAILY_IDX ? 'Menu' : 'Map', () => { Snd.play('click'); UI.overlay = null; go(G.endless || G.idx === DAILY_IDX ? 'title' : 'map'); }, { size: 30 });
   } else if (o === 'newbug') {
     drawNewBugCard(t);
   } else if (o === 'demoend') {
@@ -664,6 +689,27 @@ function drawOverlay(t) {
     plankBtn('de_menu', 650, 540, 260, 70, 'Main Menu', () => { Snd.play('click'); UI.overlay = null; Auto.stop(); go('title'); }, { size: 30 });
   }
   ctx.restore();
+}
+// results: three stars pop in one after another
+function drawResultStars(cx, cy, t, sc = 1) {
+  const r = G.result || { stars: 1 }, k = t - (UI.overlayT || 0);
+  for (let i = 0; i < 3; i++) {
+    const x = cx + (i - 1) * 84 * sc, y = cy + (i === 1 ? -12 : 0) * sc;
+    star(x, y, 36 * sc, '#8a7a60', 3);
+    const a = clamp((k - 0.35 - i * 0.35) / 0.3, 0, 1);
+    if (i < r.stars && a > 0) {
+      if (a < 1 && !UI['starSnd' + i]) { UI['starSnd' + i] = true; Snd.play('ready'); }
+      const s = easeOutBack(a); ctx.save(); ctx.translate(x, y); ctx.scale(s, s); star(0, 0, 36 * sc, '#ffd23a', 3); ctx.restore();
+    }
+  }
+  if (k < 0.1) UI.starSnd0 = UI.starSnd1 = UI.starSnd2 = false;
+}
+function drawResultStats(y) {
+  const r = G.result || { zaps: 0 }, s = G.stats;
+  const lines = [`${s.killed} zombies`, `${s.lost} plant${s.lost === 1 ? '' : 's'} lost`, r.zaps ? `${r.zaps} zapper${r.zaps === 1 ? '' : 's'} used` : 'No zappers used'];
+  ctx.font = `700 18px ${FONT_B}`; ctx.fillStyle = '#7a5a3a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(lines.join('   ·   '), W / 2, y);
+  if (r.stars < 3) { ctx.font = `600 15px ${FONT_B}`; ctx.fillStyle = '#9a7a5a'; ctx.fillText('★ Win  ★ No zappers used  ★ Lose 2 plants or fewer', W / 2, y + 22); }
 }
 // How to Play as a full scene (from the title) or as an overlay (from the pause menu)
 function drawHowToPanel(t, onClose) { drawHowTo(t, onClose); }

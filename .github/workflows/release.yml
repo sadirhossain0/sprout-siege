@@ -52,7 +52,6 @@ jobs:
           mv source/dist/SproutSiege-Mac-AppleSilicon.zip "out/SproutSiege-$V-Mac-AppleSilicon.zip"
           mv source/dist/SproutSiege-Mac-Intel.zip "out/SproutSiege-$V-Mac-Intel.zip"
           (cd source/web/dist-pwa && zip -qr "../../../out/SproutSiege-$V-Web.zip" index.html sw.js manifest.webmanifest icons)
-          cp media/videos/*.mp4 out/ 2>/dev/null || true
           ls -la out
 
       - name: Publish release
